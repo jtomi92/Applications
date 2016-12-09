@@ -80,11 +80,26 @@ public class UserProductService {
 	 * @return Integer
 	 */
 	public Integer switchRelay(Integer userId, String serialNumber, String moduleId, String relayId, String state) {
-
+		String message = "SWITCH;" + serialNumber + ";" + moduleId + ";" + relayId + ";" + state + "\n";
+		return sendToConsolePort(serialNumber, userId, message);
+	}
+	
+	public Integer update(Integer userId, String serialNumber){
+		String message = "UPDATE;" + serialNumber + "\n";
+		return sendToConsolePort(serialNumber, userId, message);
+	}
+	
+	public Integer restart(Integer userId, String serialNumber){
+		String message = "RESTART;" + serialNumber + "\n";
+		return sendToConsolePort(serialNumber, userId, message);
+	}
+	
+	private Integer sendToConsolePort(String serialNumber, Integer userId, String message){
+		
 		Connection connection = connectionService.getConnection(serialNumber);
 
 		if (connection == null || connection.getStatus().equals("DISCONNECTED")) {
-			logger.error("Module is offline... (" + serialNumber + ") REL(" + relayId + ")");
+			logger.error("Module is offline... (" + serialNumber + ")");
 			return 0;
 		}
 
@@ -99,7 +114,7 @@ public class UserProductService {
 			bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			printWriter.write("USERID;" + userId + "\n");
 			printWriter.flush();
-			printWriter.write("SWITCH;" + serialNumber + ";" + moduleId + ";" + relayId + ";" + state + "\n");
+			printWriter.write(message);
 			printWriter.flush();
 			// String response = bufferedReader.readLine();
 			// do something with the response
@@ -136,7 +151,7 @@ public class UserProductService {
 				e.printStackTrace();
 			}
 		}
-
+		
 		return 0;
 	}
 

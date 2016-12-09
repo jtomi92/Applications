@@ -233,7 +233,7 @@ Copyright 2015 Kevin Sylvestre
     return Growl.growl(options);
   };
 
-  $.growl.error = function(options) {
+  $.growl.disconnected = function(options) {
     var settings;
     if (options == null) {
       options = {};
@@ -245,13 +245,25 @@ Copyright 2015 Kevin Sylvestre
     return $.growl($.extend(settings, options));
   };
 
-  $.growl.notice = function(options) {
+  $.growl.connected = function(options) {
     var settings;
     if (options == null) {
       options = {};
     }
     settings = {
       title: "Connected",
+      style: "notice"
+    };
+    return $.growl($.extend(settings, options));
+  };
+  
+  $.growl.updated = function(options) {
+    var settings;
+    if (options == null) {
+      options = {};
+    }
+    settings = {
+      title: "Updated",
       style: "notice"
     };
     return $.growl($.extend(settings, options));

@@ -1,98 +1,92 @@
 package com.jtech.apps.hcm.service;
 
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.ModelMap;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.ModelAndView;
 
 import com.jtech.apps.hcm.form.ProductSettingsForm;
 import com.jtech.apps.hcm.form.RegisterForm;
-import com.jtech.apps.hcm.form.UserForm;
-import com.jtech.apps.hcm.helpers.RestUrls;
+import com.jtech.apps.hcm.helpers.RestUtils;
 import com.jtech.apps.hcm.model.UserProduct;
 import com.jtech.apps.hcm.model.UserProfile;
 import com.jtech.apps.hcm.model.setting.ProductControlSetting;
 import com.jtech.apps.hcm.model.setting.ProductUser;
 import com.jtech.apps.hcm.model.setting.RelaySetting;
 import com.jtech.apps.hcm.model.setting.Setting;
+import com.mysql.jdbc.StringUtils;
 
 @Service
-public class WebAppService {
+public class ConsoleService {
 
-	private static final Logger logger = Logger.getLogger(WebAppService.class);
-
-	RestTemplate restTemplate = new RestTemplate();
-	HttpHeaders headers = new HttpHeaders();
-	HttpHeaders requestHeaders = new HttpHeaders();
-	HttpEntity<?> httpEntity = new HttpEntity<Object>(requestHeaders);
+	private static final Logger logger = Logger.getLogger(ConsoleService.class);
+	private RestUtils restUtils = new RestUtils();
 
 	/**
-	 * When /console is hit, we retrive userName from context, get UserProfile from the username,
-	 * get UserProduct from the userid and populates the ModelAndView
+	 * When /console is hit, we retrive userName from context, get UserProfile
+	 * from the username, get UserProduct from the userid and populates the
+	 * ModelAndView
+	 * 
 	 * @param model
 	 * @return ModelAndView
 	 */
 	public ModelAndView onConsoleOpen(ModelMap model) {
 		ModelAndView modelAndView = new ModelAndView("console");
-		
+
 		// GET username from context
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-		String name = auth.getName();
-		logger.debug("UserName=" + name);
+		String userName = auth.getName();
+		String productPrivilige = "";
 
 		// GET userprofile of the username
-		UserProfile userProfile = restTemplate.getForObject(RestUrls.REST_USER_PROFILE_GET_BY_NAME, UserProfile.class,
-				name);
-		
-		// GET userproducts of the username by userid
-		ParameterizedTypeReference<List<UserProduct>> typeRef = new ParameterizedTypeReference<List<UserProduct>>() {
-		};
-		ResponseEntity<List<UserProduct>> responseEntity = restTemplate.exchange(RestUrls.REST_USER_PRODUCT_GET_BY_ID,
-				HttpMethod.GET, httpEntity, typeRef, userProfile.getUserId());
-		List<UserProduct> userProducts = responseEntity.getBody();
+		UserProfile userProfile = restUtils.getUserProfileByUserName(userName);
 
-		// This does not do anything, just goes through the user's products and logs information for verification
-		StringBuffer sb = new StringBuffer("ASD");
+		// GET userproducts of the username by userid
+		List<UserProduct> userProducts = restUtils.getUserProductsByUserId(userProfile.getUserId());
+
 		for (UserProduct userProduct : userProducts) {
 
-			if (userProduct.isConnected()) {
-				logger.info("CONNECTED");
-			} else {
-				logger.info("NOT CONNECTED");
-			}
+			List<RelaySetting> relaySettingsToRemove = new LinkedList<RelaySetting>();
 
-			sb.append("\nSERIAL=" + userProduct.getSerialNumber());
 			List<Setting> settings = userProduct.getProductSettings();
 			List<ProductUser> productusers = userProduct.getProductUsers();
 			for (ProductUser productUser : productusers) {
-				sb.append("\nUSER=" + productUser.getUserName() + " (" + productUser.getUserId() + ")");
+				if (productUser.getUserId().equals(userProfile.getUserId())) {
+					productPrivilige = productUser.getPrivilige();
+				}
 			}
 			List<RelaySetting> relaySettings = settings.get(0).getRelaySettings();
 			for (RelaySetting relaySetting : relaySettings) {
-				List<ProductControlSetting> productControlSettings = relaySetting.getProductControlSettings();
-				for (ProductControlSetting productControlSetting : productControlSettings) {
-					sb.append("\nPRIV/ REL=" + relaySetting.getRelayName() + " USER="
-							+ productControlSetting.getUserId());
+
+				if (!relaySetting.isRelayEnabled()) {
+					relaySettingsToRemove.add(relaySetting);
+				} else {
+					List<ProductControlSetting> productControlSettings = relaySetting.getProductControlSettings();
+					for (ProductControlSetting productControlSetting : productControlSettings) {
+						if (productControlSetting.getUserId().equals(userProfile.getUserId())
+								&& !productControlSetting.isAccess()) {
+							// relaySettingsToRemove.add(relaySetting);
+						}
+
+						if (productControlSetting.getUserId().equals(userProfile.getUserId())) {
+							// relaySettingsToRemove.add(relaySetting);
+							logger.info("RELAY=" + relaySetting.getRelayName());
+						}
+					}
 				}
 			}
+			relaySettings.removeAll(relaySettingsToRemove);
 		}
-		// logger.info(sb.toString());
 
 		// populate modelAndView
 		modelAndView.addObject("firstname", userProfile.getFirstName());
 		modelAndView.addObject("userid", userProfile.getUserId());
+		modelAndView.addObject("privilige", productPrivilige);
 		modelAndView.addObject("userProducts", userProducts);
 
 		RegisterForm registerForm = new RegisterForm();
@@ -100,87 +94,40 @@ public class WebAppService {
 
 		return modelAndView;
 	}
-	
-	/**
-	 * Loads UserForm to /register page
-	 * @param model
-	 * @return ModelAndView
-	 */
-	public ModelAndView onRegisterPageLoad(Map<String, Object> model) {
-		ModelAndView modelAndView = new ModelAndView("register");
-		UserForm userForm = new UserForm();
-		modelAndView.addObject("userForm", userForm);
-		return modelAndView;
-	}
-
-	/**
-	 * Registers user, validates fields
-	 * @param userForm
-	 * @param bindingResult
-	 * @param model
-	 * @return ModelAndView
-	 */
-	public ModelAndView onRegisterUser(UserForm userForm, BindingResult bindingResult, Map<String, Object> model) {
-
-		ModelAndView modelAndView = new ModelAndView("register");
-		modelAndView.addAllObjects(model);
-		if (bindingResult.hasErrors()) {
-			return modelAndView;
-		}
-		UserProfile userProfile = new UserProfile();
-		userProfile.setFirstName(userForm.getFirstName());
-		userProfile.setLastName(userForm.getLastName());
-		userProfile.setUserName(userForm.getEmail());
-		userProfile.setPassword(userForm.getPassword());
-		userProfile.setGroupName("USER");
-		userProfile.setEnabled(true);
-
-		HttpEntity<Object> httpEntity = new HttpEntity<Object>(userProfile, requestHeaders);
-		ResponseEntity<Integer> response = restTemplate.exchange(RestUrls.REST_ADD_USER_PROFILE, HttpMethod.PUT,
-				httpEntity, Integer.class);
-
-		if (response.getBody() == 0) {
-			logger.error("Error registering user " + userForm.getEmail() + " already exists");
-			modelAndView.addObject("error", "User already exists.");
-			return modelAndView;
-		}
-		modelAndView.addObject("success", "Registration successful");
-
-		return modelAndView;
-	}
 
 	/**
 	 * Registers UserProduct by serialNumber
+	 * 
 	 * @param userId
 	 * @param serialNumber
 	 * @return 1 onSuccess, 0 onFailure
 	 */
 	public Integer onRegisterProduct(String userId, String serialNumber) {
-		return restTemplate.getForObject(RestUrls.REST_REGISTER_USER_PRODUCT, Integer.class, userId, serialNumber);
+		return restUtils.registerProduct(userId, serialNumber);
 	}
 
 	/**
-	 * GETS UserProduct by serialNumber, updates it's name, pushes it back through the rest service
+	 * GETS UserProduct by serialNumber, updates it's name, pushes it back
+	 * through the rest service
+	 * 
 	 * @param userId
 	 * @param serialNumber
 	 * @param productName
 	 * @return 1 onSuccess, 0 onFailure
 	 */
 	public Integer onUpdateProductName(String userId, String serialNumber, String productName) {
-		
-		UserProduct userProduct = restTemplate.getForObject(RestUrls.REST_USER_PRODUCT_GET_BY_SERIAL_NUMBER,
-				UserProduct.class, serialNumber);
+
+		UserProduct userProduct = restUtils.getUserProductBySerialNumber(serialNumber);
 		userProduct.setName(productName);
-		HttpEntity<Object> httpEntity = new HttpEntity<Object>(userProduct, requestHeaders);
-		ResponseEntity<Integer> response = restTemplate.exchange(RestUrls.REST_UPDATE_USER_PRODUCT, HttpMethod.PUT,
-				httpEntity, Integer.class);
-		return response.getBody();
+		return restUtils.updateUserProduct(userProduct);
 	}
 
 	/**
-	 * GETS the userProfile we'd like to add by userName, creates ProductUser object from it.
-	 * GETS the userProduct by serialNumber, add the ProductUser to it and generate ProductControlSettings as well.
-	 * Finally it updates the userProduct through the rest service. 
+	 * GETS the userProfile we'd like to add by userName, creates ProductUser
+	 * object from it. GETS the userProduct by serialNumber, add the ProductUser
+	 * to it and generate ProductControlSettings as well. Finally it updates the
+	 * userProduct through the rest service.
+	 * 
 	 * @param serialNumber
 	 * @param userName
 	 * @return 1 onSuccess, 0 onFailure
@@ -188,8 +135,8 @@ public class WebAppService {
 	public Integer onInserProductUser(String serialNumber, String userName) {
 
 		/* GET USERPROFILE */
-		UserProfile userProfile = restTemplate.getForObject(RestUrls.REST_USER_PROFILE_GET_BY_NAME, UserProfile.class,
-				userName);
+		UserProfile userProfile = restUtils.getUserProfileByUserName(userName);
+
 		if (userProfile == null) {
 			logger.info("Error: onInserProductUser - no userprofile found for " + userName);
 			return 0;
@@ -204,8 +151,7 @@ public class WebAppService {
 		logger.debug("ID=" + userProfile.getUserId());
 
 		/* GET USERPRODUCT */
-		UserProduct userProduct = restTemplate.getForObject(RestUrls.REST_USER_PRODUCT_GET_BY_SERIAL_NUMBER,
-				UserProduct.class, serialNumber);
+		UserProduct userProduct = restUtils.getUserProductBySerialNumber(serialNumber);
 		List<ProductUser> productUsers = userProduct.getProductUsers();
 		for (ProductUser pu : productUsers) {
 			if (pu.getUserName().equals(productUser.getUserName())) {
@@ -227,16 +173,14 @@ public class WebAppService {
 		}
 		userProduct.getProductSettings().get(0).setRelaySettings(relaySettings);
 
-		HttpEntity<Object> httpEntity = new HttpEntity<Object>(userProduct, requestHeaders);
-		ResponseEntity<Integer> response = restTemplate.exchange(RestUrls.REST_UPDATE_USER_PRODUCT, HttpMethod.PUT,
-				httpEntity, Integer.class);
-
-		return response.getBody();
+		return restUtils.updateUserProduct(userProduct);
 	}
 
 	/**
-	 * GET the UserProfile of the userName we want to remove from the UserProduct identified by serialNumber
-	 * Updates UserProduct through the rest service
+	 * GET the UserProfile of the userName we want to remove from the
+	 * UserProduct identified by serialNumber Updates UserProduct through the
+	 * rest service
+	 * 
 	 * @param serialNumber
 	 * @param userName
 	 * @return 1 onSuccess, 0 onFailure
@@ -244,8 +188,7 @@ public class WebAppService {
 	public Integer onRemoveProductUser(String serialNumber, String userName) {
 
 		/* GET USERPROFILE */
-		UserProfile userProfile = restTemplate.getForObject(RestUrls.REST_USER_PROFILE_GET_BY_NAME, UserProfile.class,
-				userName);
+		UserProfile userProfile = restUtils.getUserProfileByUserName(userName);
 		if (userProfile == null) {
 			logger.info("NO PROFILE");
 			return 0;
@@ -253,8 +196,7 @@ public class WebAppService {
 
 		logger.info("ID=" + userProfile.getUserId());
 		/* GET USERPRODUCT */
-		UserProduct userProduct = restTemplate.getForObject(RestUrls.REST_USER_PRODUCT_GET_BY_SERIAL_NUMBER,
-				UserProduct.class, serialNumber);
+		UserProduct userProduct = restUtils.getUserProductBySerialNumber(serialNumber);
 		for (ProductUser pu : userProduct.getProductUsers()) {
 			if (pu.getUserName().equals(userName)) {
 				userProduct.removeProductUser(pu);
@@ -278,17 +220,13 @@ public class WebAppService {
 
 		logger.info("OK");
 
-		HttpEntity<Object> httpEntity = new HttpEntity<Object>(userProduct, requestHeaders);
-		ResponseEntity<Integer> response = restTemplate.exchange(RestUrls.REST_UPDATE_USER_PRODUCT, HttpMethod.PUT,
-				httpEntity, Integer.class);
-
-		return response.getBody();
+		return restUtils.updateUserProduct(userProduct);
 	}
 
-	
 	/**
-	 * GET the UserProfile of the userName we want to update in the UserProduct identified by serialNumber
-	 * Updates UserProduct through the rest service
+	 * GET the UserProfile of the userName we want to update in the UserProduct
+	 * identified by serialNumber Updates UserProduct through the rest service
+	 * 
 	 * @param serialNumber
 	 * @param userName
 	 * @param relayAccess
@@ -296,11 +234,10 @@ public class WebAppService {
 	 * @return
 	 */
 	public Integer onUpdateProductUser(String serialNumber, String userName, List<String> relayAccess,
-			List<String> callAccess) {
+			List<String> callAccess, String privilige) {
 
 		/* GET USERPROFILE */
-		UserProfile userProfile = restTemplate.getForObject(RestUrls.REST_USER_PROFILE_GET_BY_NAME, UserProfile.class,
-				userName);
+		UserProfile userProfile = restUtils.getUserProfileByUserName(userName);
 		if (userProfile == null) {
 			logger.error("Profile does not exist");
 			return 0;
@@ -308,8 +245,7 @@ public class WebAppService {
 
 		logger.info("UserName=" + userProfile.getUserName() + " UserID=" + userProfile.getUserId());
 		/* GET USERPRODUCT */
-		UserProduct userProduct = restTemplate.getForObject(RestUrls.REST_USER_PRODUCT_GET_BY_SERIAL_NUMBER,
-				UserProduct.class, serialNumber);
+		UserProduct userProduct = restUtils.getUserProductBySerialNumber(serialNumber);
 
 		List<RelaySetting> relaySettings = userProduct.getProductSettings().get(0).getRelaySettings();
 		for (RelaySetting relaySetting : relaySettings) {
@@ -335,35 +271,37 @@ public class WebAppService {
 			}
 		}
 
-		userProduct.getProductSettings().get(0).setRelaySettings(relaySettings);
+		if (!StringUtils.isNullOrEmpty(privilige) && (privilige.equals("USER") || privilige.equals("ADMIN"))) {
+			for (ProductUser productUser : userProduct.getProductUsers()) {
+				if (productUser.getUserName().equals(userName)) {
+					productUser.setPrivilige(privilige);	
+				}
+			}
+		}
 
-		HttpEntity<Object> httpEntity = new HttpEntity<Object>(userProduct, requestHeaders);
-		ResponseEntity<Integer> response = restTemplate.exchange(RestUrls.REST_UPDATE_USER_PRODUCT, HttpMethod.PUT,
-				httpEntity, Integer.class);
-
-		return response.getBody();
+		return restUtils.updateUserProduct(userProduct);
 	}
 
-	
-
 	/**
-	 * Get UserProduct by serialNumber, retrieves product information from ProductSettingsForm
-	 * push data from form to UserProduct, updates DB through the rest service
+	 * Get UserProduct by serialNumber, retrieves product information from
+	 * ProductSettingsForm push data from form to UserProduct, updates DB
+	 * through the rest service
+	 * 
 	 * @param serialNumber
 	 * @param psf
 	 * @return
 	 */
 	public Integer onUpdateProductSettings(String serialNumber, ProductSettingsForm psf) {
 
-		UserProduct userProduct = restTemplate.getForObject(RestUrls.REST_USER_PRODUCT_GET_BY_SERIAL_NUMBER,
-				UserProduct.class, serialNumber);
+		UserProduct userProduct = restUtils.getUserProductBySerialNumber(serialNumber);
 
 		logger.info("onUpdateProductSettings " + serialNumber);
 
 		List<RelaySetting> relaySettings = userProduct.getProductSettings().get(0).getRelaySettings();
 		for (RelaySetting relaySetting : relaySettings) {
 			for (int index = 0; index < psf.getRelayIds().size(); index++) {
-				if (relaySetting.getRelayId().equals(Integer.parseInt(psf.getRelayIds().get(index)))) {
+				if (relaySetting.getRelayId().equals(Integer.parseInt(psf.getRelayIds().get(index)))
+						&& relaySetting.getModuleId().equals(Integer.parseInt(psf.getModuleIds().get(index)))) {
 
 					logger.info("RelaySetting=" + relaySetting.getRelayId() + " psf=" + psf.getRelayIds().get(index));
 
@@ -410,24 +348,33 @@ public class WebAppService {
 		}
 		userProduct.getProductSettings().get(0).setRelaySettings(relaySettings);
 		userProduct.setEdited(true);
-		HttpEntity<Object> httpEntity = new HttpEntity<Object>(userProduct, requestHeaders);
-		ResponseEntity<Integer> response = restTemplate.exchange(RestUrls.REST_UPDATE_USER_PRODUCT, HttpMethod.PUT,
-				httpEntity, Integer.class);
 
-		return response.getBody();
+		return restUtils.updateUserProduct(userProduct);
 	}
 
 	/**
-	 * Switch relay of a product identified by serialnumber. RelayID specifies which relay to switch into status which is 0 or 1
+	 * Switch relay of a product identified by serialnumber. RelayID specifies
+	 * which relay to switch into status which is 0 or 1
+	 * 
 	 * @param userId
 	 * @param serialNumber
 	 * @param relayId
 	 * @param status
 	 * @return
 	 */
-	public Integer onRelaySwitch(Integer userId, String serialNumber, String relayId, String status) {
+	public Integer onRelaySwitch(Integer userId, String serialNumber, String moduleId, String relayId, String status) {
 		logger.info("SWITCHING " + serialNumber + " RelayId=" + relayId);
-		return restTemplate.getForObject(RestUrls.REST_SWITCH_RELAY, Integer.class, userId, serialNumber, "1", relayId, status);
+		return restUtils.onSwitchRelay(userId, serialNumber, moduleId, relayId, status);
+	}
+
+	public Integer onUpdate(Integer userId, String serialNumber) {
+		logger.info("UPDATING DEVICE " + serialNumber);
+		return restUtils.onUpdate(userId, serialNumber);
+	}
+
+	public Integer onRestart(Integer userId, String serialNumber) {
+		logger.info("RESTARTING DEVICE " + serialNumber);
+		return restUtils.onRestart(userId, serialNumber);
 	}
 
 }

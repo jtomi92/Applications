@@ -8,10 +8,9 @@ import java.net.Socket;
 
 import org.apache.log4j.Logger;
 
-
 public class UserSession implements Runnable {
 
-	private static final Logger logger = Logger.getLogger(UserSession.class);	
+	private static final Logger logger = Logger.getLogger(UserSession.class);
 	private Integer userId = 0;
 	private Socket socket;
 	private BufferedReader bufferedReader;
@@ -25,11 +24,9 @@ public class UserSession implements Runnable {
 	public Integer getUserId() {
 		return userId;
 	}
-	
- 
- 
+
 	/**
-	 * HEARTBEAT every 3 seconds to NotificationService or to the REST 
+	 * HEARTBEAT every 3 seconds to NotificationService or to the REST
 	 */
 	@Override
 	public void run() {
@@ -39,13 +36,13 @@ public class UserSession implements Runnable {
 			bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
 			printWriter = new PrintWriter(socket.getOutputStream());
-			
+
 			Runnable runnable = new Runnable() {
-				
+
 				@Override
 				public void run() {
 
-					while (isAlive){
+					while (isAlive) {
 
 						try {
 							Thread.sleep(3000);
@@ -55,8 +52,8 @@ public class UserSession implements Runnable {
 						}
 						printWriter.write("HEARTBEAT\n");
 						printWriter.flush();
-		
-					}					
+
+					}
 				}
 			};
 			Thread thread = new Thread(runnable);
@@ -67,31 +64,31 @@ public class UserSession implements Runnable {
 				String read = bufferedReader.readLine();
 
 				logger.info("READ: " + read);
-				
+
 				processIO(read);
-				
+
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (Exception e){
-			
+		} catch (Exception e) {
+
 		} finally {
 			logger.error("Closing User Session for userid " + userId);
 			isAlive = false;
 			UserSessionProvider.getInstance().removeDeadSessions();
-		 
+
 			try {
-				if (printWriter != null){
+				if (printWriter != null) {
 					printWriter.close();
 				}
-				if (bufferedReader != null){
+				if (bufferedReader != null) {
 					bufferedReader.close();
 				}
-				if (socket != null){
+				if (socket != null) {
 					socket.close();
 				}
-				
+
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -102,8 +99,10 @@ public class UserSession implements Runnable {
 	}
 
 	/**
-	 * Recieves SWITCH command is recieved through the rest service, also this function is part of the NotificationService
-	 * to provide device updates for the user.
+	 * Recieves SWITCH command is recieved through the rest service, also this
+	 * function is part of the NotificationService to provide device updates for
+	 * the user.
+	 * 
 	 * @param io
 	 */
 	private void processIO(String io) {
@@ -113,13 +112,25 @@ public class UserSession implements Runnable {
 		switch (arguments.length) {
 
 		case 1:
+
 			break;
 
 		case 2:
-			switch (arguments[0]){
+			switch (arguments[0]) {
 			case "USERID":
 				userId = Integer.parseInt(arguments[1]);
 				logger.info("USERID is=" + userId);
+				break;
+
+			case "UPDATE":
+				DeviceSessionProvider.getInstance().getDeviceSessionBySerialNumber(arguments[1]).updateUserProduct();
+				logger.info("UPDATE SerialNumber=" + arguments[1]);
+				break;
+						
+			case "RESTART":
+				DeviceSessionProvider.getInstance().getDeviceSessionBySerialNumber(arguments[1]).restartUserProduct();
+				logger.info("UPDATE SerialNumber=" + arguments[1]);
+				break;
 			}
 			break;
 
@@ -131,20 +142,21 @@ public class UserSession implements Runnable {
 				Integer relayId = Integer.parseInt(arguments[3]);
 				String state = arguments[4];
 				logger.info("Switching..." + io);
-				DeviceSessionProvider.getInstance().getDeviceSessionBySerialNumber(serialNumber).switchRelay(moduleId, relayId, state);		
-				
+				DeviceSessionProvider.getInstance().getDeviceSessionBySerialNumber(serialNumber).switchRelay(moduleId,
+						relayId, state);
 				break;
 			}
 			break;
 		}
 
 	}
-	
+
 	/**
 	 * Pushes notifications from backend to user interfaces
+	 * 
 	 * @param toWrite
 	 */
-	public void notifySession(String toWrite){
+	public void notifySession(String toWrite) {
 		logger.info("Notifying User with id=" + userId + " message:" + toWrite);
 		printWriter.write(toWrite);
 		printWriter.flush();
@@ -157,6 +169,5 @@ public class UserSession implements Runnable {
 	public void setAlive(boolean isAlive) {
 		this.isAlive = isAlive;
 	}
-	
 
 }

@@ -187,7 +187,7 @@ public class ProductCategoryDAOImpl implements ProductCategoryDAO {
 				+ "DELAY = :DELAY, RELAY_ENABLED = :RELAY_ENABLED,"
 				+ "DELAY_ENABLED = :DELAY_ENABLED, " + "TIMER_ENABLED = :TIMER_ENABLED, MODE = :MODE, "
 				+ "LAST_UPDATE_DATE = :LAST_UPDATE_DATE " + "WHERE PRODUCT_ID = :PRODUCT_ID "
-				+ "AND SETTING_ID = :SETTING_ID " + "AND RELAY_ID = :RELAY_ID";
+				+ "AND SETTING_ID = :SETTING_ID " + "AND RELAY_ID = :RELAY_ID AND MODULE_ID = :MODULE_ID";
 
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("RELAY_NAME", rs.getRelayName());
@@ -205,6 +205,7 @@ public class ProductCategoryDAOImpl implements ProductCategoryDAO {
 		parameters.put("PRODUCT_ID", productId);
 		parameters.put("SETTING_ID", settingId);
 		parameters.put("RELAY_ID", rs.getRelayId());
+		parameters.put("MODULE_ID", rs.getModuleId());
 
 		namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
 		SqlParameterSource namedParameters = new MapSqlParameterSource(parameters);
@@ -299,18 +300,19 @@ public class ProductCategoryDAOImpl implements ProductCategoryDAO {
 	}
 
 	public int addRelaySetting(RelaySetting relaySetting, Integer productId, Integer settingId) {
-		String sql = "INSERT INTO PRODUCT_DEFAULT_RELAY_SETTINGS (" + "PRODUCT_ID," + "SETTING_ID," + "RELAY_ID,"
+		String sql = "INSERT INTO PRODUCT_DEFAULT_RELAY_SETTINGS (" + "PRODUCT_ID," + "SETTING_ID," + "RELAY_ID, MODULE_ID,"
 				+ "RELAY_NAME, RELAY_STATUS, START_WEEKDAYS, END_WEEKDAYS," + "START_TIMER," + "END_TIMER," + "DELAY, RELAY_ENABLED,"
 				+ "DELAY_ENABLED," + "TIMER_ENABLED," + "CREATION_DATE," + "LAST_UPDATE_DATE) VALUES (:PRODUCT_ID,"
-				+ ":SETTING_ID," + ":RELAY_ID," + ":RELAY_NAME, :RELAY_STATUS, :START_WEEKDAYS, :END_WEEKDAYS," + ":START_TIMER," + ":END_TIMER,"
+				+ ":SETTING_ID," + ":RELAY_ID, :MODULE_ID," + ":RELAY_NAME, :RELAY_STATUS, :START_WEEKDAYS, :END_WEEKDAYS," + ":START_TIMER," + ":END_TIMER,"
 				+ ":DELAY, :RELAY_ENABLED," + ":DELAY_ENABLED," + ":TIMER_ENABLED,"
 				+ ":CREATION_DATE," + ":LAST_UPDATE_DATE)";
 
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("PRODUCT_ID", productId);
 		parameters.put("SETTING_ID", settingId);
+		parameters.put("MODULE_ID", relaySetting.getModuleId());
 		parameters.put("RELAY_ID", relaySetting.getRelayId());
-		parameters.put("RELAY_NAME", relaySetting.getRelayName());
+		parameters.put("RELAY_NAME", relaySetting.getRelayName()); 
 		parameters.put("RELAY_STATUS", relaySetting.getRelayStatus());
 		parameters.put("START_WEEKDAYS", relaySetting.getStartWeekDays());
 		parameters.put("END_WEEKDAYS", relaySetting.getEndWeekDays());

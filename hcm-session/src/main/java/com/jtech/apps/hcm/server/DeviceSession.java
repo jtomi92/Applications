@@ -8,23 +8,20 @@ import java.net.Socket;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
 
+import com.jtech.apps.hcm.helpers.RestUtils;
 import com.jtech.apps.hcm.model.Connection;
 import com.jtech.apps.hcm.model.ProductCategory;
 import com.jtech.apps.hcm.model.RegisteredProduct;
 import com.jtech.apps.hcm.model.UserProduct;
-import com.jtech.apps.hcm.model.UserProfile;
 import com.jtech.apps.hcm.model.setting.InputSetting;
 import com.jtech.apps.hcm.model.setting.ProductControlSetting;
 import com.jtech.apps.hcm.model.setting.ProductTriggerSetting;
@@ -35,27 +32,15 @@ import com.jtech.apps.hcm.util.TimeUtil;
 
 /*
  * TODO:
- * - Redo REST communication similar to WebAppService
  * - Use property file for device commands
  * - Encode/Decode communication with device (HW Updates required)
  * - Change delays to waitForOKResponse (HW Updates required)
  * - Rethink the process we communicate towards the device (switchRelay procedure)
- * - DeviceSessions should retrieve UserProduct automatically when Settings/ProductUsers are updated 
  */
 
 public class DeviceSession extends Thread implements Runnable {
 
 	private static final Logger logger = Logger.getLogger(DeviceSession.class);
-
-	private final String REST_URL = "http://localhost:8081";
-	private final String REST_ADD_REGISTERED_PRODUCT = REST_URL + "/registeredproduct/add";
-	private final String REST_GET_REGISTERED_PRODUCT_BY_SERIAL_NUMBER = REST_URL + "/registeredproduct/get/{serial}";
-	private final String REST_GET_USER_PRODUCT_BY_SERIAL_NUMBER = REST_URL + "/product/get/serial/{serial}";
-	private final String REST_GET_PRODUCT_CATEGORY_BY_ID = REST_URL + "/productcategory/get/id/{id}";
-	private final String REST_GET_USER_PROFILE_BY_ID = REST_URL + "/userprofile/get/id/{userid}";
-	private final String REST_GET_PRODUCT_CATEGORY_BY_NAME = REST_URL + "/productcategory/get/name/{id}";
-	private final String REST_UPDATE_CONNECTION = REST_URL + "/connection/update";
-	public final String REST_UPDATE_USER_PRODUCT = REST_URL + "/product/update";
 
 	private String serialNumber;
 	private Socket socket;
@@ -67,6 +52,8 @@ public class DeviceSession extends Thread implements Runnable {
 
 	private ProductCategory productCategory;
 	private UserProduct userProduct;
+	
+	private RestUtils restUtils = new RestUtils();
 
 	/**
 	 * 
@@ -77,7 +64,7 @@ public class DeviceSession extends Thread implements Runnable {
 	 */
 	public DeviceSession(Socket socket, String host, Integer devicePort, Integer consolePort) {
 		this.socket = socket;
- 
+
 		connection = new Connection();
 		connection.setHost(host);
 		connection.setDevicePort(devicePort);
@@ -93,8 +80,7 @@ public class DeviceSession extends Thread implements Runnable {
 			bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			printWriter = new PrintWriter(socket.getOutputStream());
 
-			String time = new SimpleDateFormat("yy;MM;dd;HH;mm;ss;").format(Calendar.getInstance().getTime());
-			write("TIME;" + time);
+			updateDeviceTime();
 
 			while (!Thread.interrupted() && isValidConnection) {
 
@@ -109,25 +95,24 @@ public class DeviceSession extends Thread implements Runnable {
 			e.printStackTrace();
 		} finally {
 
-			
 			if (serialNumber != null) {
 				Integer sessionCount = 0;
 				List<DeviceSession> deviceSessions = DeviceSessionProvider.getInstance().getDeviceSessions();
 				for (DeviceSession deviceSession : deviceSessions) {
-					if (deviceSession.getSerialNumber().equals(serialNumber)){
+					if (deviceSession.getSerialNumber().equals(serialNumber)) {
 						sessionCount++;
 					}
 				}
-				
-				// When a device is restarted, it connects to the server in less time, than it's previous session is dumped.
-				if (sessionCount == 1){
+				// When a device is restarted, it connects to the server in less
+				// time, than it's previous session is dumped.
+				if (sessionCount == 1) {
 					connection.setStatus("DISCONNECTED");
 					connection.setSerialNumber(serialNumber);
-					restPut(connection, Integer.class, REST_UPDATE_CONNECTION);
+					restUtils.updateConnection(connection);
 					notifyUserSessions("NOTIFICATION;CONNECTION;OFFLINE");
 				}
 			}
-			
+
 			logger.error("Closing device session with serialnumber: " + serialNumber);
 
 			// TODO: This maybe not working
@@ -143,6 +128,16 @@ public class DeviceSession extends Thread implements Runnable {
 
 		}
 
+	}
+	
+	/**
+	 * Send device the current time in format: yy;mm;dd;hh;mm;ss;day;
+	 */
+	void updateDeviceTime(){
+		Calendar calendar = Calendar.getInstance();
+		Date date = calendar.getTime();
+		String time = new SimpleDateFormat("yy;MM;dd;HH;mm;ss;").format(Calendar.getInstance().getTime()) + new SimpleDateFormat("EE", Locale.ENGLISH).format(date.getTime()) + ";";
+		write("TIME;" + time);
 	}
 
 	/**
@@ -195,16 +190,15 @@ public class DeviceSession extends Thread implements Runnable {
 			}
 			break;
 
-		case "NOTIFICATION":// NOTIFICATION;SWITCH;relay_id;state
+		case "NOTIFICATION":// NOTIFICATION;SWITCH;module_id;relay_id;state
 			notifyUserSessions(readLine);
 			break;
 
-		case "RELAYCONNECTIONS": // RELAYCONNECTIONS;1:2:3:4:10:11:12;
+		case "RELAYCONNECTIONS": // RELAYCONNECTIONS;1:14;2:10;4:12
 
 			logger.info("Updating relay connections...");
-			String[] relayIds = arguments[1].split(":");
-
-			processRelayConnections(relayIds);
+			processRelayConnections(readLine);
+			notifyUserSessions("NOTIFICATION;REFRESH");
 
 			break;
 
@@ -234,13 +228,40 @@ public class DeviceSession extends Thread implements Runnable {
 	 * 
 	 * @param relayIds
 	 */
-	private void processRelayConnections(String[] relayIds) {
+	// RELAYCONNECTIONS;1:14;2:10;4:12
+	private void processRelayConnections(String readLine) {
+
+		Map<Integer, List<Integer>> relayConnections = new HashMap<Integer, List<Integer>>();
+
+		String[] args = readLine.split(";");
+		for (int i = 1; i < args.length; i++) {
+			String[] data = args[i].split(":");
+			if (data.length == 2) {
+				Integer moduleId = Integer.parseInt(data[0]);
+				Integer relayCount = Integer.parseInt(data[1]);
+
+				List<Integer> relayIds = new LinkedList<Integer>();
+				for (int relayId = 1; relayId <= relayCount; relayId++) {
+					relayIds.add(relayId);
+				}
+				relayConnections.put(moduleId, relayIds);
+			}
+		}
 
 		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < relayIds.length; i++) {
-			sb.append(relayIds[i] + ",");
+
+		for (Map.Entry<Integer, List<Integer>> entry : relayConnections.entrySet()) {
+			Integer moduleId = entry.getKey();
+			List<Integer> relayIds = entry.getValue();
+
+			sb.append("(module=" + moduleId + ", relayids=");
+			for (Integer relayId : relayIds) {
+				sb.append(relayId + ",");
+			}
+			sb.append(")");
 		}
-		logger.debug("Connected relayIds for " + userProduct.getSerialNumber() + ":" + sb.toString());
+
+		//logger.debug("Connected relayIds for " + userProduct.getSerialNumber() + ":" + sb.toString());
 
 		List<RelaySetting> relaySettings = userProduct.getProductSettings().get(0).getRelaySettings();
 		List<ProductControlSetting> productControlSettings = relaySettings.get(0).getProductControlSettings();
@@ -252,27 +273,42 @@ public class DeviceSession extends Thread implements Runnable {
 		}
 
 		// enable connected relays, generate new relays
-		for (int i = 0; i < relayIds.length; i++) {
-			boolean found = false;
-			for (RelaySetting relaySetting : relaySettings) {
-				if (relaySetting.getRelayId().equals(Integer.parseInt(relayIds[i]))) {
-					relaySetting.setRelayEnabled(true); // enables relay
-					found = true; // mark it as found
-					break;
+		for (Map.Entry<Integer, List<Integer>> entry : relayConnections.entrySet()) {
+			Integer moduleId = entry.getKey();
+			List<Integer> relayIds = entry.getValue();
+
+			for (int i = 0; i < relayIds.size(); i++) {
+				boolean found = false;
+				for (RelaySetting relaySetting : relaySettings) {
+					if (relaySetting.getRelayId().equals(relayIds.get(i))
+							&& relaySetting.getModuleId().equals(moduleId)) {
+						relaySetting.setRelayEnabled(true); // enables relay
+						found = true; // mark it as found
+						break;
+					}
 				}
-			}
-			if (!found) { // relay was recently added and not present in db
-				logger.debug("Relay ID not found:" + relayIds[i] + " generating new setting...");
-				RelaySetting relaySetting = generateRelaySetting(Integer.parseInt(relayIds[i]), productControlSettings);
-				generatedRelaySettings.add(relaySetting);
+				if (!found) { // relay was recently added and not present in db
+					logger.debug("Relay ID not found:" + moduleId + "/" + relayIds.get(i) + " generating new setting...");
+					RelaySetting relaySetting = generateRelaySetting(moduleId, relayIds.get(i),
+							productControlSettings);
+					generatedRelaySettings.add(relaySetting);
+				}
 			}
 		}
 
 		if (generatedRelaySettings.size() != 0) {
 			userProduct.getProductSettings().get(0).getRelaySettings().addAll(generatedRelaySettings);
 		}
+		
+		StringBuilder sb2 = new StringBuilder("Current RelaySettings\n");
+		for (RelaySetting relaySetting : userProduct.getProductSettings().get(0).getRelaySettings()) {
+			sb2.append("(" + relaySetting.getModuleId() + "/" + relaySetting.getRelayId() + ") [" + relaySetting.isRelayEnabled() + "]\n");
+		}
+		logger.info(sb2.toString());
 
-		// update UserProductSetting in db and on device
+		int err = restUtils.updateUserProduct(userProduct);
+		
+		logger.error("Response=" + err);
 
 	}
 
@@ -306,13 +342,23 @@ public class DeviceSession extends Thread implements Runnable {
 
 				// here we list all kinds of notifications
 
-				if (args.length == 4 && args[1].equals("SWITCH")) {
-					String notification = "SWITCH " + serialNumber + " " + args[2] + " " + args[3] + "\n";
+				if (args.length == 5 && args[1].equals("SWITCH")) {
+					String notification = "SWITCH " + serialNumber + " " + args[2] + " " + args[3] + " " + args[4] + "\n";
 					userSession.notifySession(notification);
 					logger.debug("USERID in Session: " + userSession.getUserId() + " Notification:" + notification);
 				}
 				if (args.length == 3 && args[1].equals("CONNECTION")) {
 					String notification = "CONNECTION " + serialNumber + " " + args[2] + "\n";
+					userSession.notifySession(notification);
+					logger.debug("USERID in Session: " + userSession.getUserId() + " Notification:" + notification);
+				}
+				if (args.length == 2 && args[1].equals("REFRESH")) {
+					String notification = "REFRESH " + serialNumber + "\n";
+					userSession.notifySession(notification);
+					logger.debug("USERID in Session: " + userSession.getUserId() + " Notification:" + notification);
+				}
+				if (args.length == 2 && args[1].equals("UPDATED")) {
+					String notification = "UPDATED " + serialNumber + "\n";
 					userSession.notifySession(notification);
 					logger.debug("USERID in Session: " + userSession.getUserId() + " Notification:" + notification);
 				}
@@ -329,8 +375,7 @@ public class DeviceSession extends Thread implements Runnable {
 	 */
 	private void requestSerialNumber(String productName) {
 
-		ProductCategory productCategory = (ProductCategory) restGet(REST_GET_PRODUCT_CATEGORY_BY_NAME,
-				ProductCategory.class, productName);
+		ProductCategory productCategory = restUtils.getProductCategoryByName(productName);
 
 		if (productCategory != null) {
 
@@ -346,12 +391,12 @@ public class DeviceSession extends Thread implements Runnable {
 
 			logger.info("Adding new registered product with serialnumber: " + serialNumber);
 
-			if (((Integer) restPut(registeredProduct, Integer.class, REST_ADD_REGISTERED_PRODUCT)) == 1) {
+			if (((Integer) restUtils.addRegisteredProduct(registeredProduct)) == 1) {
 				write("SERIAL_NUMBER#" + serialNumber + "#");
 
 				connection.setStatus("CONNECTED");
 				connection.setSerialNumber(serialNumber);
-				restPut(connection, Integer.class, REST_UPDATE_CONNECTION);
+				restUtils.updateConnection(connection);
 
 			} else {
 				logger.error("Error during adding new registered product with serialnumber:" + serialNumber);
@@ -378,10 +423,9 @@ public class DeviceSession extends Thread implements Runnable {
 
 		connection.setStatus("CONNECTED");
 		connection.setSerialNumber(serialNumber);
-		restPut(connection, Integer.class, REST_UPDATE_CONNECTION);
+		restUtils.updateConnection(connection);
 
-		RegisteredProduct registeredProduct = (RegisteredProduct) restGet(REST_GET_REGISTERED_PRODUCT_BY_SERIAL_NUMBER,
-				RegisteredProduct.class, serialNumber);
+		RegisteredProduct registeredProduct = restUtils.getRegisteredProductBySerialNumber(serialNumber);
 
 		if (registeredProduct == null) {
 			logger.error("Registered product does not exist for serialnumber: " + serialNumber);
@@ -390,8 +434,7 @@ public class DeviceSession extends Thread implements Runnable {
 			if (registeredProduct.isActivated() && registeredProduct.isRegistered()) {
 
 				logger.info("Registered product is ACTIVATED and REGISTERED, getting user product...");
-				userProduct = (UserProduct) restGet(REST_GET_USER_PRODUCT_BY_SERIAL_NUMBER, UserProduct.class,
-						serialNumber);
+				userProduct = restUtils.getUserProductBySerialNumber(serialNumber);
 
 				// TODO: wait for OK response instead of delay
 				if (userProduct != null) {
@@ -401,8 +444,7 @@ public class DeviceSession extends Thread implements Runnable {
 			} else {
 
 				logger.info("Registered product is NOT ACTIVATED, getting product category...");
-				productCategory = (ProductCategory) restGet(REST_GET_PRODUCT_CATEGORY_BY_ID, ProductCategory.class,
-						registeredProduct.getProductId());
+				productCategory = restUtils.getProductCategoryById(registeredProduct.getProductId());
 
 				// TODO: wait for OK response instead of delay
 				if (productCategory != null) {
@@ -421,10 +463,19 @@ public class DeviceSession extends Thread implements Runnable {
 	 * @param productControlSettings
 	 * @return RelaySetting
 	 */
-	private RelaySetting generateRelaySetting(Integer relayId, List<ProductControlSetting> productControlSettings) {
+	private RelaySetting generateRelaySetting(Integer moduleId, Integer relayId,
+			List<ProductControlSetting> productControlSettings) {
 		RelaySetting relaySetting = new RelaySetting();
+		relaySetting.setModuleId(moduleId);
 		relaySetting.setRelayId(relayId);
+		relaySetting.setRelayName("Relay " + moduleId + "/" + relayId);
 		relaySetting.setImpulseMode(false);
+		relaySetting.setRelayStatus("N");
+		relaySetting.setStartWeekDays("");
+		relaySetting.setEndWeekDays("");
+		relaySetting.setStartTimer("");
+		relaySetting.setEndTimer("");
+		relaySetting.setDelay("0");
 		relaySetting.setRelayEnabled(true);
 		relaySetting.setDelayEnabled(false);
 		relaySetting.setTimerEnabled(false);
@@ -487,11 +538,11 @@ public class DeviceSession extends Thread implements Runnable {
 	 */
 	private boolean uploadProductSettings(UserProduct userProduct) {
 
-		if (!userProduct.isEdited()){
+		if (!userProduct.isEdited()) {
 			logger.info("UserProduct Setting is not edited... Not uploading settings...");
 			return false;
 		}
-			
+
 		List<String> settingStrings = new LinkedList<String>();
 		List<Setting> settings = userProduct.getProductSettings();
 
@@ -523,9 +574,10 @@ public class DeviceSession extends Thread implements Runnable {
 				e.printStackTrace();
 			}
 		}
-		// setting isEdited flag so next time it won't be updated (unless settings change)
+		// setting isEdited flag so next time it won't be updated (unless
+		// settings change)
 		userProduct.setEdited(false);
-		restPut(userProduct, Integer.class, REST_UPDATE_USER_PRODUCT);
+		restUtils.updateUserProduct(userProduct);
 		return true;
 
 	}
@@ -536,7 +588,7 @@ public class DeviceSession extends Thread implements Runnable {
 	 * @param serialNumber
 	 * @param setting
 	 * @param productUsers
-	 * @return List<String> 
+	 * @return List<String>
 	 */
 	private List<String> generateSettingString(String serialNumber, Setting setting, List<ProductUser> productUsers) {
 
@@ -546,7 +598,8 @@ public class DeviceSession extends Thread implements Runnable {
 
 		for (RelaySetting relaySetting : relaySettings) {
 			StringBuilder relayString = new StringBuilder("#RS;");
-			relayString.append("MI:1" + ";"); // Module ID
+			relayString.append("MI:" + relaySetting.getModuleId() + ";"); // Module
+																			// ID
 			relayString.append("RI:" + relaySetting.getRelayId() + ";");
 			relayString.append("ST:" + relaySetting.getStartTimer() + ";");
 			relayString.append("ET:" + relaySetting.getEndTimer() + ";");
@@ -579,8 +632,7 @@ public class DeviceSession extends Thread implements Runnable {
 				}
 
 				StringBuilder controlSetting = new StringBuilder(
-						"#" + privilige + ":" + ((UserProfile) (restGet(REST_GET_USER_PROFILE_BY_ID, UserProfile.class,
-								productUser.getUserId()))).getPhoneNumber() + ";");
+						"#" + privilige + ":" + (restUtils.getUserProfileByUserId(productUser.getUserId())).getPhoneNumber() + ";");
 
 				// logger.info("user id:" + productUser.getUserId());
 				for (RelaySetting relaySetting : relaySettings) {
@@ -636,13 +688,21 @@ public class DeviceSession extends Thread implements Runnable {
 	 * @return
 	 */
 	// TODO: should only use write in a generic manner
-	public boolean switchRelay(Integer moduleId, Integer relayId, String state) {
-
+	public void switchRelay(Integer moduleId, Integer relayId, String state) {
 		String toWrite = "SWITCHRELAY;" + moduleId + ";" + relayId + ";" + state + ";";
-		// logger.info(toWrite);
 		write(toWrite);
-
-		return true;
+	}
+	
+	/** 
+	 * refresh userProduct data
+	 */
+	public void updateUserProduct(){
+		userProduct = restUtils.getUserProductBySerialNumber(serialNumber);
+		write("UPDATE");
+	}
+	
+	public void restartUserProduct(){
+		write("RESTART");
 	}
 
 	/**
@@ -657,8 +717,9 @@ public class DeviceSession extends Thread implements Runnable {
 	}
 
 	/**
-	 * generateSerialNumber function
-	 * we use 10 char long serialNumbers generated from numbers and alphabetic characters
+	 * generateSerialNumber function we use 10 char long serialNumbers generated
+	 * from numbers and alphabetic characters
+	 * 
 	 * @param len
 	 * @return String
 	 */
@@ -675,8 +736,7 @@ public class DeviceSession extends Thread implements Runnable {
 				sb.append(AB.charAt(rnd.nextInt(AB.length())));
 			serialNumber = sb.toString();
 
-			if ((RegisteredProduct) restGet(REST_GET_REGISTERED_PRODUCT_BY_SERIAL_NUMBER, RegisteredProduct.class,
-					serialNumber) == null) {
+			if (restUtils.getRegisteredProductBySerialNumber(serialNumber) == null) {
 				isValidSerial = true;
 			}
 		}
@@ -686,39 +746,13 @@ public class DeviceSession extends Thread implements Runnable {
 
 	/**
 	 * getSerialNumber function
+	 * 
 	 * @return String
 	 */
 	public String getSerialNumber() {
 		return serialNumber;
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private int restPut(Object object, Class cl, String url) {
-
-		logger.info("REST_URL=" + url);
-		RestTemplate restTemplate = new RestTemplate();
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<Object> entity = new HttpEntity<Object>(object, headers);
-		ResponseEntity<Object> response = restTemplate.exchange(url, HttpMethod.PUT, entity, cl);
-
-		if (response.getStatusCode() == HttpStatus.OK) {
-			return 1;
-		} else {
-			return 0;
-		}
-	}
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private Object restGet(String url, Class cl, Object... args) {
-		logger.info("REST_URL=" + url);
-		RestTemplate restTemplate = new RestTemplate();
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		Object object = restTemplate.getForObject(url, cl, args);
-		// check the response, e.g. Location header, Status, and body
-		return object;
-	}
 
 	private void delay(Integer ms) {
 

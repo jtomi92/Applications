@@ -49,11 +49,12 @@ public class UserProfileDAOImpl implements UserProfileDAO {
 	public int updateUserProfile(UserProfile up) {
 
 		String sql = "UPDATE USER_PROFILES SET "
-				+ "USER_PASSWORD = :USER_PASSWORD, GROUP_ID = (SELECT GROUP_ID FROM GROUPS WHERE GROUP_NAME = :GROUP_NAME),"
+				+ "USER_NAME = :USER_NAME, USER_PASSWORD = :USER_PASSWORD, GROUP_ID = (SELECT GROUP_ID FROM GROUPS WHERE GROUP_NAME = :GROUP_NAME),"
 				+ "PHONE_NUMBER = :PHONE_NUMBER, FIRST_NAME = :FIRST_NAME, LAST_NAME = :LAST_NAME," + "ADDRESS = :ADDRESS, " + "CITY = :CITY, " + "ENABLED = :ENABLED, "
 				+ "LAST_UPDATE_DATE = :LAST_UPDATE_DATE " + "WHERE USER_ID = :USER_ID";
 
 		Map<String, Object> parameters = new HashMap<String, Object>();
+		parameters.put("USER_NAME", up.getUserName());
 		parameters.put("USER_PASSWORD", up.getPassword());
 		parameters.put("GROUP_NAME", up.getGroupName());
 		parameters.put("PHONE_NUMBER", up.getPhoneNumber());

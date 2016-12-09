@@ -57,6 +57,7 @@ public class ProductCategoryMapper{
 	public RelaySetting mapRelaySetting(Map<String, Object> row) {
 
 		RelaySetting relaySetting = new RelaySetting();
+		relaySetting.setModuleId((Integer)row.get("MODULE_ID"));
 		relaySetting.setRelayId((Integer)row.get("RELAY_ID"));
 		relaySetting.setRelayName((String)row.get("RELAY_NAME"));
 		relaySetting.setRelayStatus((String)row.get("RELAY_STATUS"));

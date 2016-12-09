@@ -83,11 +83,21 @@ public class UserProductController {
 	
 	
 	@RequestMapping(value = "/product/switch/{userid}/{serial}/{moduleid}/{relayid}/{state}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Integer> relayControl(@PathVariable("userid") Integer userId, @PathVariable("serial") String serialNumber, @PathVariable("moduleid") String moduleId, @PathVariable("relayid") String relayId, @PathVariable("state") String state) {
+	public ResponseEntity<Integer> switchRelay(@PathVariable("userid") Integer userId, @PathVariable("serial") String serialNumber, @PathVariable("moduleid") String moduleId, @PathVariable("relayid") String relayId, @PathVariable("state") String state) {
 
-		logger.info("Serial Number:" + serialNumber + " ModuleId:" + moduleId + " RelayId:" + relayId + " State:" + state);
 		Integer err = userProductService.switchRelay(userId,serialNumber,moduleId,relayId,state);
-
+		return new ResponseEntity<Integer>(err, HttpStatus.OK);
+	}
+	
+	@RequestMapping(value = "/device/update/{userid}/{serial}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Integer> updateUserProduct(@PathVariable("userid") Integer userId, @PathVariable("serial") String serialNumber) {
+		Integer err = userProductService.update(userId, serialNumber);
+		return new ResponseEntity<Integer>(err, HttpStatus.OK);
+	} 
+	
+	@RequestMapping(value = "/device/restart/{userid}/{serial}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Integer> restartDevice(@PathVariable("userid") Integer userId, @PathVariable("serial") String serialNumber) {
+		Integer err = userProductService.restart(userId, serialNumber);
 		return new ResponseEntity<Integer>(err, HttpStatus.OK);
 	}
 	

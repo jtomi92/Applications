@@ -23,7 +23,7 @@ public interface UserProductDAO {
 	public int addUserProductInputSetting(InputSetting inputSetting, String serialNumber, Integer settingId);
 
 	public int addUserProductControlSetting(ProductControlSetting productControlSetting, String serialNumber,
-			Integer settingId, Integer relayId);
+			Integer settingId, Integer relayId, Integer moduleId);
 
 	public int addUserProductTriggerSetting(ProductTriggerSetting productTriggerSetting, String serialNumber,
 			Integer settingId, Integer inputId);
@@ -37,7 +37,7 @@ public interface UserProductDAO {
 	public List<InputSetting> getInputSettings(String serialNumber,  Integer settingId);
 
 	public List<ProductControlSetting> getUserProductControlSettings(String serialNumber, Integer settingId,
-			Integer relayId);
+			Integer relayId, Integer moduleId);
 
 	public List<ProductTriggerSetting> getProductTriggetSetting(String serialNumber, Integer settingId,
 			Integer inputId);
@@ -56,7 +56,7 @@ public interface UserProductDAO {
 	public int updateUserProductControlSetting(ProductControlSetting productTriggerSetting, String serialNumber,
 			Integer settingId, Integer relayId);
 	
-	public int deleteUserProductControlSettings(String serialNumber, Integer settingId, Integer relayId);
+	public int deleteUserProductControlSettings(String serialNumber, Integer settingId, Integer relayId, Integer moduleId);
 	
 	public int deleteUserProductTriggerSettings(String serialNumber, Integer settingId, Integer inputId);
 	

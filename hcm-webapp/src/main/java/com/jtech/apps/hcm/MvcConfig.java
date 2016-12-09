@@ -13,8 +13,10 @@ public class MvcConfig extends WebMvcConfigurerAdapter {
     public void addViewControllers(ViewControllerRegistry registry) {
     	registry.addViewController("/login").setViewName("login");
         registry.addViewController("/console").setViewName("console");
-        registry.addViewController("/register").setViewName("register");   
-        registry.addViewController("/").setViewName("login");     
+        registry.addViewController("/register").setViewName("register"); 
+        registry.addViewController("/myaccount").setViewName("myaccount"); 
+        registry.addViewController("/contact").setViewName("contact"); 
+        registry.addRedirectViewController("/","console");
         registry.addViewController("/403").setViewName("403");
     }
     @Bean(name = "dataSource")

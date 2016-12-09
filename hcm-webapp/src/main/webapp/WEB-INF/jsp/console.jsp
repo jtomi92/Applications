@@ -8,6 +8,10 @@
 <html lang="en">
 
 <head>
+<meta http-equiv="Cache-Control"
+	content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <meta charset="UTF-8">
 <!-- If IE use the latest rendering engine -->
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -33,12 +37,18 @@
 	src="${pageContext.request.contextPath}/resources/custom/js/ajax-functions.js"></script>
 <script type="text/javascript"
 	src="${pageContext.request.contextPath}/resources/custom/js/navigation.js"></script>
+	
+	
 <script type="text/javascript"
-	src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>	
+	src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
 <script type="text/javascript"
-	src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.1/sockjs.js"></script>	
-<script src="${pageContext.request.contextPath}/resources/custom/js/jquery.growl.js" type="text/javascript"></script>
-<link href="${pageContext.request.contextPath}/resources/custom/css/jquery.growl.css" rel="stylesheet" type="text/css" />
+	src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.1/sockjs.js"></script>
+<script
+	src="${pageContext.request.contextPath}/resources/custom/js/jquery.growl.js"
+	type="text/javascript"></script>
+<link
+	href="${pageContext.request.contextPath}/resources/custom/css/jquery.growl.css"
+	rel="stylesheet" type="text/css" />
 
 
 <link rel="stylesheet" type="text/css"
@@ -62,34 +72,9 @@
 	<input type="hidden" id="username" name="username"
 		value="${pageContext.request.userPrincipal.name}">
 
- 
-	<div class="collapse navbar-collapse navbar-inverse"
-		id="bs-example-navbar-collapse-1">
-		<ul class="nav navbar-nav">
-			<li class="active"><a href="#">Home <span class="sr-only">(current)</span></a></li>
-			<li><a href="#">About</a></li>
-			<li><a href="#">Contact Us</a></li>
-		</ul>
-		<!-- navbar-left will move the search to the left -->
-		<form class="navbar-form navbar-right" role="search">
-			<button type="submit" class="btn btn-warning">My Console</button>
-		</form>
-		<div class="navbar-form navbar-right">
-<%-- 			<form action="/logout" method="post"> --%>
-<!-- 				<input type="submit" class="btn btn-warning" class="button red big" -->
-<!-- 					value="Sign Out" /> <input type="hidden" -->
-<%-- 					name="${_csrf.parameterName}" value="${_csrf.token}" /> --%>
-<%-- 			</form> --%>
-			<h4>
-				<font color="white">#Log<b>out</b></font>
-			</h4>
-		</div>
-		<div class="navbar-form navbar-right">
-			<h4>
-				<font color="white">Hello <b><c:out value="${firstname}"></c:out></b></font>
-			</h4>
-		</div>
-	</div>
+	<jsp:include page="wrapper/header.jsp">
+		<jsp:param name="firstname" value="${firstname}" />
+	</jsp:include>
 	<br>
 
 	<div class="container-fluid"
@@ -108,21 +93,19 @@
 									value="product-relay-control-${count.index}">${ups.name}
 									(${ups.serialNumber})</option>
 							</c:forEach>
-
 						</select>
 					</div>
-
-
 				</div>
+
 			</div>
 
 			<div id="tabs-container">
 
 				<ul class="nav nav-tabs nav-justified" id="myTabs">
-					<li class="active"><a href="#tab0">Control</a></li>
+					<li class="active"><a href="#tab0">Controls</a></li>
 					<li><a href="#tab1">Settings</a></li>
 					<li><a href="#tab2">Users</a></li>
-					<li><a href="#tab3">Overview</a></li>
+<!-- 					<li><a href="#tab3">Overview</a></li> -->
 					<li><a href="#tab4">Registration</a></li>
 				</ul>
 
@@ -140,11 +123,13 @@
 
 							<c:choose>
 								<c:when test="${ups.isConnected()}">
-									<div id="${ups.serialNumber}-connection-status" style="text-align: center;"
+									<div id="${ups.serialNumber}-connection-status"
+										style="text-align: center;"
 										class="container-fluid alert-success">Device is ONLINE</div>
 								</c:when>
 								<c:otherwise>
-									<div id="${ups.serialNumber}-connection-status" style="text-align: center;"
+									<div id="${ups.serialNumber}-connection-status"
+										style="text-align: center;"
 										class="container-fluid alert-danger">Device is OFFLINE</div>
 								</c:otherwise>
 							</c:choose>
@@ -165,7 +150,13 @@
 									<c:forEach
 										items="${ups.productSettings.iterator().next().relaySettings}"
 										var="relaysetting" varStatus="count2">
-										<option value="relay-control-${count2.index}">${relaysetting.relayName}</option>
+										<c:forEach items="${relaysetting.productControlSettings}"
+											var="pcs">
+											<c:if test="${(pcs.userId eq userid) && pcs.isAccess()}">
+												<option value="relay-control-${count2.index}">${relaysetting.relayName}
+													(${relaysetting.moduleId}/${relaysetting.relayId})</option>
+											</c:if>
+										</c:forEach>
 									</c:forEach>
 								</select>
 							</div>
@@ -176,7 +167,8 @@
 								<table class="table table-striped" style="margin-bottom: 10px;">
 									<thead>
 										<tr>
-											<th>Relay Number</th>
+											<th>Module ID</th>
+											<th>Relay ID</th>
 											<th>Relay Name</th>
 											<th>Status</th>
 											<th>Control</th>
@@ -186,20 +178,30 @@
 										<c:forEach
 											items="${ups.productSettings.iterator().next().relaySettings}"
 											var="relaysetting" varStatus="count">
-
-											<tr id="relay-control-${count.index}" style="display: none;">
-												<td>${relaysetting.relayId}</td>
-												<td>${relaysetting.relayName}</td>
-												<td><span id="relaystatus-${ups.serialNumber}-${relaysetting.relayId}" class="label label-danger">OFF</span></td>
-												<td><button type="button" class="btn-primary btn"
-														onClick="switchRelay('${ups.serialNumber}', '${relaysetting.relayId}');">SWITCH</button></td>
-											</tr>
+											<c:forEach items="${relaysetting.productControlSettings}"
+												var="pcs">
+												<c:if test="${(pcs.userId eq userid) && pcs.isAccess()}">
+													<tr id="relay-control-${count.index}"
+														style="display: none;">
+														<td>${relaysetting.moduleId}</td>
+														<td>${relaysetting.relayId}</td>
+														<td>${relaysetting.relayName}</td>
+														<td><span
+															id="relaystatus-${ups.serialNumber}-${relaysetting.moduleId}-${relaysetting.relayId}"
+															class="label label-danger">OFF</span></td>
+														<td>
+															<div id="relay-progressbar-${ups.serialNumber}-${relaysetting.moduleId}-${relaysetting.relayId}" class="loader" style="display:none;" id="timex"></div>
+															<button id="relay-switch-${ups.serialNumber}-${relaysetting.moduleId}-${relaysetting.relayId}" style="display:block;" type="button" class="btn-primary btn"
+																onClick="switchRelay('${ups.serialNumber}','${relaysetting.moduleId}', '${relaysetting.relayId}');">SWITCH</button>
+														</td>
+													</tr>
+												</c:if>
+											</c:forEach>
 										</c:forEach>
 									</tbody>
 								</table>
 							</div>
 						</div>
-
 					</c:forEach>
 				</div>
 			</section>
@@ -212,10 +214,7 @@
 					<c:forEach items="${userProducts}" var="ups" varStatus="count">
 
 						<div class="panel panel-default"
-							id="product-relay-control-${count.index}"
-							name="product-relay-control-${count.index}"
-							style="display: none;">
-
+							id="product-relay-control-${count.index}" style="display: none;">
 
 							<div class="page-header" style="text-align: center;">
 								<h3>Relay Settings</h3>
@@ -232,7 +231,13 @@
 									<c:forEach
 										items="${ups.productSettings.iterator().next().relaySettings}"
 										var="relaysetting" varStatus="count2">
-										<option value="relay-setting-${count2.index}">${relaysetting.relayName}</option>
+										<c:forEach items="${relaysetting.productControlSettings}"
+											var="pcs">
+											<c:if test="${(pcs.userId eq userid) && pcs.isAccess()}">
+												<option value="relay-setting-${count2.index}">${relaysetting.relayName}
+													(${relaysetting.moduleId}/${relaysetting.relayId})</option>
+											</c:if>
+										</c:forEach>
 									</c:forEach>
 								</select>
 							</div>
@@ -244,7 +249,8 @@
 										<table class="table table-striped" id="relaysettingtable">
 											<thead>
 												<tr>
-													<th>Relay Number</th>
+													<th>Module ID</th>
+													<th>Relay ID</th>
 													<th>Relay Name</th>
 													<th>Delay (sec)</th>
 													<th>Impulse Mode</th>
@@ -256,30 +262,40 @@
 												<c:forEach
 													items="${ups.productSettings.iterator().next().relaySettings}"
 													var="relaysetting" varStatus="count2">
-													<tr class="${ups.serialNumber}-relay-setting"
-														id="relay-setting-${count2.index}" style="display: none;">
-														<td id="${ups.serialNumber}-relayid-${count2.index}">${relaysetting.relayId}</td>
-														<td><input
-															id="${ups.serialNumber}-relayname-${count2.index}"
-															type="text" class="input-sm" style="width: 150px"
-															placeholder="${relaysetting.relayName}"></td>
-														<td><input
-															id="${ups.serialNumber}-delay-${count2.index}"
-															type="number" min="0" class="input-sm"
-															style="width: 100px" placeholder="${relaysetting.delay}"></td>
-														<td><c:choose>
-																<c:when test="${relaysetting.impulseMode}">
-																	<input id="${ups.serialNumber}-impulse-${count2.index}"
-																		checked type="checkbox" value="">
-																</c:when>
-																<c:otherwise>
-																	<input id="${ups.serialNumber}-impulse-${count2.index}"
-																		type="checkbox" value="">
-																</c:otherwise>
-															</c:choose></td>
-														<td><button type="button" class="btn-primary btn"
-																onclick="showHideTags('relay-timers-${count.index}','div','relay-tmr-${count2.index}','relay')">EDIT</button></td>
-													</tr>
+													<c:forEach items="${relaysetting.productControlSettings}"
+														var="pcs">
+														<c:if test="${(pcs.userId eq userid) && pcs.isAccess()}">
+															<tr class="${ups.serialNumber}-relay-setting"
+																id="relay-setting-${count2.index}"
+																style="display: none;">
+																<td id="${ups.serialNumber}-moduleid-${count2.index}">${relaysetting.moduleId}</td>
+																<td id="${ups.serialNumber}-relayid-${count2.index}">${relaysetting.relayId}</td>
+																<td><input
+																	id="${ups.serialNumber}-relayname-${count2.index}"
+																	type="text" class="input-sm" style="width: 150px"
+																	placeholder="${relaysetting.relayName}"></td>
+																<td><input
+																	id="${ups.serialNumber}-delay-${count2.index}"
+																	type="number" min="0" class="input-sm"
+																	style="width: 100px"
+																	placeholder="${relaysetting.delay}"></td>
+																<td><c:choose>
+																		<c:when test="${relaysetting.impulseMode}">
+																			<input
+																				id="${ups.serialNumber}-impulse-${count2.index}"
+																				checked type="checkbox" value="">
+																		</c:when>
+																		<c:otherwise>
+																			<input
+																				id="${ups.serialNumber}-impulse-${count2.index}"
+																				type="checkbox" value="">
+																		</c:otherwise>
+																	</c:choose></td>
+																<td><button type="button" class="btn-primary btn"
+																		onclick="showHideTags('relay-timers-${count.index}','div','relay-tmr-${count2.index}','relay')">EDIT</button></td>
+															</tr>
+														</c:if>
+													</c:forEach>
 												</c:forEach>
 											</tbody>
 										</table>
@@ -294,7 +310,8 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th>Relay</th>
+														<th>Module ID</th>
+														<th>Relay ID</th>
 														<th>Function</th>
 														<th>Days of Week</th>
 														<th>Timer</th>
@@ -303,13 +320,15 @@
 												</thead>
 												<tbody>
 													<tr style="border-style: hidden;">
+														<td><label>${relaysetting.moduleId}</label></td>
 														<td><label>${relaysetting.relayId}</label></td>
 														<td><label>Start Timer</label></td>
 														<td><div class="dropup">
 																<select
 																	id="weekday-picker-start-${ups.serialNumber}-${count2.index}"
 																	multiple="multiple">
-																	<c:set var="weekday" value="${relaysetting.startWeekDays}" />
+																	<c:set var="weekday"
+																		value="${relaysetting.startWeekDays}" />
 
 																	<c:choose>
 																		<c:when test="${fn:containsIgnoreCase(weekday,'mon')}">
@@ -403,13 +422,15 @@
 
 													<tr>
 														<td></td>
+														<td></td>
 														<td><label>End Timer</label></td>
 														<td><div class="dropup">
 																<select
 																	id="weekday-picker-end-${ups.serialNumber}-${count2.index}"
 																	multiple="multiple">
 
-																	<c:set var="weekday" value="${relaysetting.endWeekDays}" />
+																	<c:set var="weekday"
+																		value="${relaysetting.endWeekDays}" />
 
 																	<c:choose>
 																		<c:when test="${fn:containsIgnoreCase(weekday,'MO')}">
@@ -496,11 +517,18 @@
 								</div>
 								<div class="container-fluid" style="float: right;">
 
-									<button
-										onClick="updateProductSettings('${ups.serialNumber}','${count.index}');"
-										type="submit" class="btn-primary btn pull-right">SAVE
-										SETTING</button>
-
+									<c:choose>
+										<c:when test="${privilige eq 'ADMIN'}">
+											<button
+												onClick="updateProductSettings('${ups.serialNumber}','${count.index}');"
+												type="submit" class="btn-primary btn pull-right">SAVE
+												SETTING</button>
+										</c:when>
+										<c:otherwise>
+											<button disabled type="submit"
+												class="btn-primary btn pull-right">SAVE SETTING</button>
+										</c:otherwise>
+									</c:choose>
 								</div>
 							</div>
 
@@ -530,10 +558,19 @@
 
 												<input id="add-product-user-${count.index}" type="text"
 													class="form-control" placeholder="Email address"> <span
-													class="input-group-btn ">
-													<button class="btn btn-primary" type="button"
-														onClick="addProductUser('${ups.serialNumber}','${count.index}');">ADD
-														USER</button>
+													class="input-group-btn "> <c:choose>
+														<c:when test="${privilige eq 'ADMIN'}">
+															<button class="btn btn-primary" type="button"
+																onClick="addProductUser('${ups.serialNumber}','${count.index}');">ADD
+																USER</button>
+														</c:when>
+														<c:otherwise>
+															<button disabled class="btn btn-primary" type="button">ADD
+																USER</button>
+														</c:otherwise>
+													</c:choose>
+
+
 												</span>
 											</div>
 											<div class="container-fluid alert-danger"
@@ -574,7 +611,30 @@
 												varStatus="count2">
 
 												<tr>
-												 	<td><label>${productUsers.privilige}</label></td>
+													<td><c:choose>
+															<c:when
+																test="${productUsers.userName eq pageContext.request.userPrincipal.name || privilige eq 'USER'}">
+																<label>${productUsers.privilige}</label>
+															</c:when>
+															<c:otherwise>
+																<label><select
+																	id="product-priv-picker-${count.index}-${count2.index}"
+																	class="form-control" style="width:100px;">
+																	<c:if test="${productUsers.privilige eq 'ADMIN'}">
+																		<option value="priv-${count2.index}-${count3.index}"
+																			selected>ADMIN</option>
+																		<option value="priv-${count2.index}-${count3.index}">USER</option>
+																	</c:if>
+																	<c:if test="${productUsers.privilige eq 'USER'}">
+																		<option value="priv-${count2.index}-${count3.index}">ADMIN</option>
+																		<option selected
+																			value="priv-${count2.index}-${count3.index}">USER</option>
+																	</c:if>
+																</select></label>
+															</c:otherwise>
+														</c:choose></td>
+
+
 													<td><label>${productUsers.userName}</label></td>
 													<td><select
 														id="product-relay-priv-picker-${count.index}-${count2.index}"
@@ -626,11 +686,21 @@
 													<td>
 														<div class="btn-group">
 
-															<button type="button" class="btn btn-primary"
-																onClick="updateProductUser('${productUsers.userName}','${ups.serialNumber}','${count.index}-${count2.index}');">SAVE</button>
+															<c:choose>
+																<c:when test="${privilige eq 'ADMIN'}">
+																	<button type="button" class="btn btn-primary"
+																		onClick="updateProductUser('${productUsers.userName}','${ups.serialNumber}','${count.index}-${count2.index}');">SAVE</button>
+																	<c:if test="${not (productUsers.userName eq pageContext.request.userPrincipal.name)}">
+																	<button type="button" class="btn btn-danger"
+																		onClick="removeProductUser('${productUsers.userName}','${ups.serialNumber}','${count.index}-${count2.index}');">REMOVE</button>
+																	</c:if>
+																</c:when>
+																<c:otherwise>
+																	<button type="button" disabled class="btn btn-primary">SAVE</button>
+																	<button type="button" disabled class="btn btn-danger">REMOVE</button>
+																</c:otherwise>
+															</c:choose>
 
-															<button type="button" class="btn btn-danger"
-																onClick="removeProductUser('${productUsers.userName}','${ups.serialNumber}','${count.index}-${count2.index}');">REMOVE</button>
 														</div>
 													</td>
 												</tr>
@@ -655,33 +725,23 @@
 							<div class="col-lg-6">
 								<h4>Register My Product</h4>
 								<div class="input-group">
-
-
 									<input id="registrationSerialNumber" type="text"
 										class="form-control" placeholder="Serial Number" /> <span
 										class="input-group-btn">
 										<button class="btn btn-primary" type="button"
 											onClick="registerProduct()">REGISTER</button>
-
 									</span>
 								</div>
 								<div class="container-fluid alert-danger"
 									id="register-error-message"></div>
 								<div class="container-fluid alert-success"
 									id="register-success-message"></div>
-								<!-- /input-group -->
 							</div>
-							<!-- /.col-lg-6 -->
 						</div>
-
 					</div>
 				</div>
 				<div class="panel panel-default">
-					<!-- Default panel contents -->
 
-
-					<!-- /.row -->
-					<!-- Table -->
 					<br>
 					<div class="page-header" style="text-align: center;">
 						<h3>My Registered Products</h3>
@@ -705,9 +765,16 @@
 												<input id="registred-product-field-${count2.index}"
 													type="text" class="form-control"
 													placeholder="${userProduct.name}"> <span
-													class="input-group-btn">
-													<button class="btn btn-primary" type="button"
-														onClick="saveProductName('${userProduct.serialNumber}','${count2.index}');">SAVE</button>
+													class="input-group-btn"> <c:choose>
+														<c:when test="${privilige eq 'ADMIN'}">
+															<button class="btn btn-primary" type="button"
+																onClick="saveProductName('${userProduct.serialNumber}','${count2.index}');">SAVE</button>
+														</c:when>
+														<c:otherwise>
+															<button disabled class="btn btn-primary" type="button">SAVE</button>
+														</c:otherwise>
+													</c:choose>
+
 												</span>
 											</div>
 										</td>
@@ -722,18 +789,12 @@
 
 
 		</div>
-		<!-- FOOTER START -->
 
-		<footer class="footer">
-			<div class="container">
-				<p class="text-muted">2016 jTech. All rights reserved.</p>
-			</div>
-		</footer>
+		<jsp:include page="wrapper/footer.jsp" />
+
 	</div>
 
-	<!-- FOOTER END -->
-	
- 
-	
+
+
 </body>
 </html>

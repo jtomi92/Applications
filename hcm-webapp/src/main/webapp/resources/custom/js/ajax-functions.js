@@ -13,11 +13,12 @@ function registerProduct() {
 			return;
 		}
 		var userid = document.getElementById("userid").value;
+		var serialNumber = $("#registrationSerialNumber").val();
 		data['userId'] = userid;
-		data['serialNumber'] = $("#registrationSerialNumber").val();
+		data['serialNumber'] = serialNumber;
 
 		var result = '';
-		console.log(data);
+		//console.log(data);
 
 		$
 				.ajax({
@@ -34,7 +35,7 @@ function registerProduct() {
 					success : function(res, ioArgs) {
 						result = res;
 
-						console.log(res);
+						//console.log(res);
 
 						if (res == '0') {
 							document.getElementById("register-error-message").innerHTML = "Serial Number does not exist.";
@@ -42,13 +43,14 @@ function registerProduct() {
 						} else {
 							document.getElementById("register-success-message").innerHTML = "You have successfully registered your product";
 							document.getElementById("register-success-message").style.visibility = "visible";
+							restartDevice(serialNumber);
 							location.reload();
 						}
 
 					},
 					error : function(e) {
-						console.log("error");
-						console.log(e);
+						//console.log("error");
+						//console.log(e);
 					}
 
 				});
@@ -77,7 +79,7 @@ function registerProduct() {
 				+ index).value;
 		var userid = document.getElementById("userid").value;
 		
-		console.log("SERIAL=" + serialNumber + " PRODUCTNAME=" + productName + " USERID=" + userid);
+		//console.log("SERIAL=" + serialNumber + " PRODUCTNAME=" + productName + " USERID=" + userid);
 
 		var token = $("meta[name='_csrf']").attr("content");
 		var header = $("meta[name='_csrf_header']").attr("content");
@@ -86,7 +88,7 @@ function registerProduct() {
 		data['serialNumber'] = serialNumber;
 		data['productName'] = productName;
 
-		console.log(data);
+		//console.log(data);
 
 		$.ajax({
 			type : "POST",
@@ -101,7 +103,7 @@ function registerProduct() {
 			},
 			success : function(res, ioArgs) {
 
-				console.log(res);
+				//console.log(res);
 
 				if (res == '0') {
 					
@@ -112,8 +114,8 @@ function registerProduct() {
 
 			},
 			error : function(e) {
-				console.log("error");
-				console.log(e);
+				//console.log("error");
+				//console.log(e);
 			}
 
 		});
@@ -126,9 +128,9 @@ function registerProduct() {
 		
 			
 		document.getElementById("user-error-message-" + index).style.visibility = "hidden";
-		console.log("SERIALNUMBER=" + serialNumber);
-		console.log("INPUTID=" + index);
-		console.log("USER=" + userToAdd);		
+		//console.log("SERIALNUMBER=" + serialNumber);
+		//console.log("INPUTID=" + index);
+		//console.log("USER=" + userToAdd);		
 		
 		if (userToAdd === null || userToAdd === ""){
 			document.getElementById("user-error-message-" + index).innerHTML = "Field can not be empty.";
@@ -155,21 +157,22 @@ function registerProduct() {
 			success : function(res, ioArgs) {
 				
 				if (res == '0'){
-					console.log('0' + res);
+					//console.log('0' + res);
 					document.getElementById("user-error-message-" + index).innerHTML = "User does not exist.";
 					document.getElementById("user-error-message-" + index).style.visibility = "visible";
 				} else if (res == '1'){
-					console.log('1' + res);
+					//console.log('1' + res);
+					updateDevice(serialNumber);
 					location.reload();
 				} else if (res == '-1'){
-					console.log('-1' + res);
+					//console.log('-1' + res);
 				}
 		
 
 			},
 			error : function(e) {
-				console.log("error");
-				console.log(e);
+				//console.log("error");
+				//console.log(e);
 			}
 
 		});
@@ -179,9 +182,9 @@ function registerProduct() {
 	function removeProductUser(userToRemove, serialNumber, input) {
 		
 		var currUser = document.getElementById("username").value;
-		console.log("CURRENTUSER=" + currUser);
+		//console.log("CURRENTUSER=" + currUser);
 		if (currUser == userToRemove){
-			console.log("do not delete urself lol");
+			//console.log("do not delete urself lol");
 			return;
 		}
 		
@@ -204,19 +207,18 @@ function registerProduct() {
 			success : function(res, ioArgs) {
 				
 				if (res == '0'){
-					console.log('0' + res);
+					//console.log('0' + res);
 				} else if (res == '1'){
-					console.log('1' + res);
+					//console.log('1' + res);
+					updateDevice(serialNumber);
 					location.reload();
 				} else if (res == '-1'){
-					console.log('-1' + res);
+					//console.log('-1' + res);
 				}
-		
-
 			},
 			error : function(e) {
-				console.log("error");
-				console.log(e);
+				//console.log("error");
+				//console.log(e);
 			}
 
 		});
@@ -236,15 +238,19 @@ function registerProduct() {
 				function() {
 					selectedRelayAccess.push($(this).text());
 				});
-		console.log("USER=" + userName);
-		console.log("SERIALNUMBER=" + serialNumber);
-		console.log("PRIV-VALUES=" + selectedRelayAccess);
-		console.log("CALL-VALUES=" + selectedCallAccess);
+		var privilige = $("#product-priv-picker-" + input + " :selected").text();
+		
+		//console.log("PRIVILIGE=" + privilige);
+		//console.log("USER=" + userName);
+		//console.log("SERIALNUMBER=" + serialNumber);
+		//console.log("PRIV-VALUES=" + selectedRelayAccess);
+		//console.log("CALL-VALUES=" + selectedCallAccess);
 		
 		data['relayAccess'] = selectedRelayAccess;
 		data['callAccess'] = selectedCallAccess;
+		data['privilige'] = privilige;
 		
-		console.log(data);
+		//console.log(data);
 		
 		var token = $("meta[name='_csrf']").attr("content");
 		var header = $("meta[name='_csrf_header']").attr("content");
@@ -264,17 +270,18 @@ function registerProduct() {
 			success : function(res, ioArgs) {
 				
 				if (res == '0'){
-					console.log('0' + res);
+					//console.log('0' + res);
 				} else if (res == '1'){
-					console.log('1' + res);
+					//console.log('1' + res);
+					updateDevice(serialNumber);
 					location.reload();
 				} else if (res == '-1'){
-					console.log('-1' + res);
+					//console.log('-1' + res);
 				}		
 			},
 			error : function(e) {
-				console.log("error");
-				console.log(e);
+				//console.log("error");
+				//console.log(e);
 			}
 
 		});
@@ -283,6 +290,7 @@ function registerProduct() {
 	
 	function updateProductSettings(serialNumber, position) {
 		
+		var moduleIds = [];
 		var relayIds = [];
 		var relayNames = [];
 		var delays = [];
@@ -294,11 +302,15 @@ function registerProduct() {
 		var endTimers = [];
 		var timerEnabled = [];
  
+		$('td[id^="'+serialNumber + '-moduleid-"]').each(function() {
+			moduleIds.push($(this).html()); 			
+		});
+		
 		$('td[id^="'+serialNumber + '-relayid-"]').each(function() {
 			relayIds.push($(this).html()); 			
 		});
 		
-		console.log('input[id^="'+serialNumber + '-relayname-"]');
+		//console.log('input[id^="'+serialNumber + '-relayname-"]');
 		$('input[id^="'+serialNumber + '-relayname-"]').each(function() {
 			
 			relayNames.push($(this).val()); 			
@@ -332,7 +344,8 @@ function registerProduct() {
 			endTimers.push($(this).val()); 			
 		});
 		
-		var tosend = {"relayIds" : relayIds,
+		var tosend = {"moduleIds" : moduleIds,
+					"relayIds" : relayIds,
 					"relayNames" : relayNames,					
 					"delays" : delays,
 					"impulses" : impulses,	
@@ -343,7 +356,7 @@ function registerProduct() {
 					"endTimers" : endTimers
 					}; 
 
-		console.log(JSON.stringify(tosend));
+		//console.log(JSON.stringify(tosend));
 		
 		var token = $("meta[name='_csrf']").attr("content");
 		var header = $("meta[name='_csrf_header']").attr("content");
@@ -363,24 +376,25 @@ function registerProduct() {
 			success : function(res, ioArgs) {
 				
 				if (res == '0'){
-					console.log('0' + res);
+					//console.log('0' + res);
 				} else if (res == '1'){
-					console.log('1' + res);
+					//console.log('1' + res);
+					updateDevice(serialNumber);
 					location.reload();
 				} else if (res == '-1'){
-					console.log('-1' + res);
+					//console.log('-1' + res);
 				}		
 			},
 			error : function(e) {
-				console.log("error");
-				console.log(e);
+				//console.log("error");
+				//console.log(e);
 			}
 
 		});
 	 
 	}
 	
-	function switchRelay(serialNumber, relayId){
+	function switchRelay(serialNumber, moduleId, relayId){
 		
 		//stompSend();
 		
@@ -388,18 +402,20 @@ function registerProduct() {
 		var header = $("meta[name='_csrf_header']").attr("content");
 		var userid = document.getElementById("userid").value;
 		var relaystatus;
-		if (document.getElementById("relaystatus-" + serialNumber + "-" + relayId).innerHTML == "ON"){
+		if (document.getElementById("relaystatus-" + serialNumber + "-" + moduleId + "-" + relayId).innerHTML == "ON"){
 			relaystatus = 0;
 		} else {
 			relaystatus = 1;
 		}
+		document.getElementById("relay-progressbar-" + serialNumber + "-" + moduleId + "-" + relayId).style.display = "block";
+		document.getElementById("relay-switch-" + serialNumber + "-" + moduleId + "-" + relayId).style.display = "none";
 		
 		$.ajax({
 			type : "POST",
 			contentType : "application/json",
 			async : false,
 			url : 'relay/' + userid + '/'
-					+ serialNumber + '/' + relayId + '/' + relaystatus,
+					+ serialNumber + '/' + moduleId + '/' + relayId + '/' + relaystatus,
 			dataType : 'json',
 			beforeSend : function(xhr) {
 				// here it is
@@ -408,17 +424,97 @@ function registerProduct() {
 			success : function(res, ioArgs) {
 				
 				if (res == '0'){
-					console.log('0' + res);
+					//console.log('0' + res);
 				} else if (res == '1'){
-					console.log('1' + res);
+					//console.log('1' + res);
 					location.reload();
 				} else if (res == '-1'){
-					console.log('-1' + res);
+					//console.log('-1' + res);
 				}		
 			},
 			error : function(e) {
-				console.log("error");
-				console.log(e);
+				//console.log("error");
+				//console.log(e);
+			}
+
+		});
+	}
+	
+	
+	
+	function updateDevice(serialNumber){
+		
+		//stompSend();
+		
+		var token = $("meta[name='_csrf']").attr("content");
+		var header = $("meta[name='_csrf_header']").attr("content");
+		var userid = document.getElementById("userid").value;
+
+		
+		$.ajax({
+			type : "POST",
+			contentType : "application/json",
+			async : false,
+			url : 'device/update/' + userid + '/'
+					+ serialNumber,
+			dataType : 'json',
+			beforeSend : function(xhr) {
+				// here it is
+				xhr.setRequestHeader(header, token);
+			},
+			success : function(res, ioArgs) {
+				
+				if (res == '0'){
+					//console.log('0' + res);
+				} else if (res == '1'){
+					//console.log('1' + res);
+					location.reload();
+				} else if (res == '-1'){
+					//console.log('-1' + res);
+				}		
+			},
+			error : function(e) {
+				//console.log("error");
+				//console.log(e);
+			}
+
+		});
+	}
+	
+	
+	function restartDevice(serialNumber){
+		
+		//stompSend();
+		
+		var token = $("meta[name='_csrf']").attr("content");
+		var header = $("meta[name='_csrf_header']").attr("content");
+		var userid = document.getElementById("userid").value;
+	
+		$.ajax({
+			type : "POST",
+			contentType : "application/json",
+			async : false,
+			url : 'device/restart/' + userid + '/'
+					+ serialNumber,
+			dataType : 'json',
+			beforeSend : function(xhr) {
+				// here it is
+				xhr.setRequestHeader(header, token);
+			},
+			success : function(res, ioArgs) {
+				
+				if (res == '0'){
+					//console.log('0' + res);
+				} else if (res == '1'){
+					//console.log('1' + res);
+					location.reload();
+				} else if (res == '-1'){
+					//console.log('-1' + res);
+				}		
+			},
+			error : function(e) {
+				//console.log("error");
+				//console.log(e);
 			}
 
 		});

@@ -15,8 +15,6 @@ import org.springframework.stereotype.Repository;
 
 import com.jtech.apps.hcm.dao.interfaces.ConnectionsDAO;
 import com.jtech.apps.hcm.model.Connection;
-import com.jtech.apps.hcm.model.setting.InputSetting;
-import com.jtech.apps.hcm.model.setting.ProductTriggerSetting;
 import com.jtech.apps.hcm.util.TimeUtil;
 
 @Repository

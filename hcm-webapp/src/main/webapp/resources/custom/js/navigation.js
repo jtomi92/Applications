@@ -1,6 +1,5 @@
- 
 	
-	$(document).ready(
+	$(document).ready(			
 		function() {
 			
 			connect();
@@ -66,7 +65,7 @@
 			});
 			
 			for (var i=0; i<serialNumbers.length; i++){
-				console.log("SERIAL-"+i+"="+serialNumbers[i]);
+				//console.log("SERIAL-"+i+"="+serialNumbers[i]);
 				
 				var settingPickerId = localStorage.getItem(serialNumbers[i] + "-setting-picker");
 				var settingPickerValues = localStorage.getItem(serialNumbers[i] + "-setting-values");
@@ -292,16 +291,6 @@
 			donetext : 'Done'
 		});
 	});
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	
 	// Script for getting selected relay values
 	$(document).ready(function() {

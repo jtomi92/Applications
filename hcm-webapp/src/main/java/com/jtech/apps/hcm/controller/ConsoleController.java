@@ -1,16 +1,10 @@
 package com.jtech.apps.hcm.controller;
 
-import java.util.Map;
-
-import javax.validation.Valid;
-
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,31 +16,27 @@ import com.jtech.apps.hcm.form.ProductForm;
 import com.jtech.apps.hcm.form.ProductSettingsForm;
 import com.jtech.apps.hcm.form.ProductUserForm;
 import com.jtech.apps.hcm.form.RegisterForm;
-import com.jtech.apps.hcm.form.UserForm;
-import com.jtech.apps.hcm.service.WebAppService;
- 
-
+import com.jtech.apps.hcm.service.ConsoleService;
 
 @Controller
-public class WebAppController {
+public class ConsoleController {
 
 	@Autowired
-	WebAppService webAppService;
+	ConsoleService consoleService;
 
-	private static final Logger logger = Logger.getLogger(WebAppController.class);
-
+	private static final Logger logger = Logger.getLogger(ConsoleController.class);
+	
 	@RequestMapping(value = "/console", method = RequestMethod.GET)
 	public ModelAndView onConsoleOpen(ModelMap model) {
 		
-		return webAppService.onConsoleOpen(model);
-	}
-	
+		return consoleService.onConsoleOpen(model);
+	}	
 
 	@RequestMapping(value = "/register", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
 	public Integer onRegisterProduct(@RequestBody RegisterForm registerForm) {
   
-		return	webAppService.onRegisterProduct(registerForm.getUserId(), registerForm.getSerialNumber());
+		return	consoleService.onRegisterProduct(registerForm.getUserId(), registerForm.getSerialNumber());
 	}
 	
 	@RequestMapping(value = "/update", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -55,9 +45,8 @@ public class WebAppController {
 		
 		logger.info(productForm.getSerialNumber() + " " + productForm.getUserId() + " " + productForm.getProductName());
  	
-		return webAppService.onUpdateProductName(productForm.getUserId(), productForm.getSerialNumber(), productForm.getProductName());
+		return consoleService.onUpdateProductName(productForm.getUserId(), productForm.getSerialNumber(), productForm.getProductName());
 	}
-	
 	
 	@RequestMapping(value = "/productuser/add/{serial}/{username:.+}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
@@ -65,7 +54,7 @@ public class WebAppController {
   
 		logger.info(serialNumber + " " + userName);
 		
-		return webAppService.onInserProductUser(serialNumber, userName);
+		return consoleService.onInserProductUser(serialNumber, userName);
 	}
 	
 	@RequestMapping(value = "/productuser/remove/{serial}/{username:.+}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -74,7 +63,7 @@ public class WebAppController {
   
 		logger.info(serialNumber + " " + userName);
 		
-		return webAppService.onRemoveProductUser(serialNumber, userName);
+		return consoleService.onRemoveProductUser(serialNumber, userName);
 	}
 	
 	@RequestMapping(value = "/productuser/update/{serial}/{username:.+}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -90,7 +79,7 @@ public class WebAppController {
 			logger.info("CALL ACCESS=" + callAccess);
 		}
 		
-		return webAppService.onUpdateProductUser(serialNumber, userName, productUserForm.getRelayAccess(), productUserForm.getCallAccess());
+		return consoleService.onUpdateProductUser(serialNumber, userName, productUserForm.getRelayAccess(), productUserForm.getCallAccess(), productUserForm.getPrivilige());
 	}
 	
 	
@@ -99,29 +88,28 @@ public class WebAppController {
 	public Integer onUpdateProductSettings(@PathVariable("serial") String serialNumber,  @RequestBody ProductSettingsForm productSettingsForm) {
 		 
 		 
-		return webAppService.onUpdateProductSettings(serialNumber, productSettingsForm);
+		return consoleService.onUpdateProductSettings(serialNumber, productSettingsForm);
 	}
 	
-	@RequestMapping(value = "/relay/{userid}/{serial}/{relayid}/{status}", method = RequestMethod.POST )
+	@RequestMapping(value = "/relay/{userid}/{serial}/{moduleid}/{relayid}/{status}", method = RequestMethod.POST )
 	@ResponseBody
-	public Integer onRelaySwitch(@PathVariable("userid") Integer userId, @PathVariable("serial") String serialNumber, @PathVariable("relayid") String relayId, @PathVariable("status") String status) {
+	public Integer onRelaySwitch(@PathVariable("userid") Integer userId, @PathVariable("serial") String serialNumber,@PathVariable("moduleid") String moduleId, @PathVariable("relayid") String relayId, @PathVariable("status") String status) {
 	
-		return webAppService.onRelaySwitch(userId, serialNumber, relayId, status); 
+		return consoleService.onRelaySwitch(userId, serialNumber,moduleId, relayId, status); 
 	}
 	
-	@RequestMapping(value = "/register", method = RequestMethod.GET)
-	public ModelAndView onRegisterPageLoad(Map<String, Object> model) {
-		
-		return webAppService.onRegisterPageLoad(model); 
-	}
-
-	@RequestMapping(value = "/register", method = RequestMethod.POST )
-	public ModelAndView onRegisterUser(@Valid @ModelAttribute("userForm") UserForm userForm,
-			BindingResult bindingResult, Map<String, Object> model) {
+	@RequestMapping(value = "/device/update/{userid}/{serial}", method = RequestMethod.POST )
+	@ResponseBody
+	public Integer onUpdate(@PathVariable("userid") Integer userId, @PathVariable("serial") String serialNumber) {
 	
-		return webAppService.onRegisterUser(userForm, bindingResult, model);
+		return consoleService.onUpdate(userId, serialNumber); 
 	}
 	
+	@RequestMapping(value = "/device/restart/{userid}/{serial}", method = RequestMethod.POST )
+	@ResponseBody
+	public Integer onRestart(@PathVariable("userid") Integer userId, @PathVariable("serial") String serialNumber){
 	
-
+		return consoleService.onRestart(userId, serialNumber); 
+	}
+	
 }

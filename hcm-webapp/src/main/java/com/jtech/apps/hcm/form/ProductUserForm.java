@@ -6,6 +6,15 @@ public class ProductUserForm {
 	
 	private List<String> relayAccess; 
 	private List<String> callAccess;
+	private String privilige;
+	
+	
+	public String getPrivilige() {
+		return privilige;
+	}
+	public void setPrivilige(String privilige) {
+		this.privilige = privilige;
+	}
 	public List<String> getRelayAccess() {
 		return relayAccess;
 	}

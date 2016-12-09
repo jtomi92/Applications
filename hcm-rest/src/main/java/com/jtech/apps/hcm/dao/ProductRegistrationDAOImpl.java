@@ -32,9 +32,7 @@ public class ProductRegistrationDAOImpl implements ProductRegistrationDAO {
 		RegisteredProduct registeredProduct = getRegisteredProductBySerialNumber(serial);
 		registeredProduct.setActivated(true);
 
-		updateRegisteredProduct(registeredProduct);
-
-		return 0;
+		return updateRegisteredProduct(registeredProduct);
 	}
 
 	@Override

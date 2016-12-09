@@ -130,18 +130,19 @@ public class UserProductDAOImpl implements UserProductDAO {
 	@Override
 	public int addUserProductRelaySetting(RelaySetting relaySetting, String serialNumber, Integer settingId) {
 
-		String sql = "INSERT INTO USER_PRODUCT_RELAY_SETTINGS (" + "SERIAL_NUMBER," + "SETTING_ID," + "RELAY_ID,"
-				+ "RELAY_NAME, RELAY_STATUS, START_WEEKDAYS, END_WEEKDAYS," + "START_TIMER," + "END_TIMER,"
-				+ "DELAY, RELAY_ENABLED, DELAY_ENABLED," + "TIMER_ENABLED, MODE," + "CREATION_DATE,"
-				+ "LAST_UPDATE_DATE) VALUES (:SERIAL_NUMBER," + ":SETTING_ID," + ":RELAY_ID,"
+		String sql = "INSERT INTO USER_PRODUCT_RELAY_SETTINGS (" + "SERIAL_NUMBER," + "SETTING_ID,"
+				+ "RELAY_ID, MODULE_ID," + "RELAY_NAME, RELAY_STATUS, START_WEEKDAYS, END_WEEKDAYS," + "START_TIMER,"
+				+ "END_TIMER," + "DELAY, RELAY_ENABLED, DELAY_ENABLED," + "TIMER_ENABLED, MODE," + "CREATION_DATE,"
+				+ "LAST_UPDATE_DATE) VALUES (:SERIAL_NUMBER," + ":SETTING_ID," + ":RELAY_ID, :MODULE_ID,"
 				+ ":RELAY_NAME, :RELAY_STATUS, :START_WEEKDAYS, :END_WEEKDAYS," + ":START_TIMER," + ":END_TIMER,"
-				+ ":DELAY, " + ":RELAY_ENABLED, :DELAY_ENABLED,"
-				+ ":TIMER_ENABLED, :MODE, :CREATION_DATE," + ":LAST_UPDATE_DATE)";
+				+ ":DELAY, " + ":RELAY_ENABLED, :DELAY_ENABLED," + ":TIMER_ENABLED, :MODE, :CREATION_DATE,"
+				+ ":LAST_UPDATE_DATE)";
 
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("SERIAL_NUMBER", serialNumber);
 		parameters.put("SETTING_ID", settingId);
 		parameters.put("RELAY_ID", relaySetting.getRelayId());
+		parameters.put("MODULE_ID", relaySetting.getModuleId());
 		parameters.put("RELAY_STATUS", relaySetting.getRelayStatus());
 		parameters.put("RELAY_NAME", relaySetting.getRelayName());
 		parameters.put("START_WEEKDAYS", relaySetting.getStartWeekDays());
@@ -158,7 +159,8 @@ public class UserProductDAOImpl implements UserProductDAO {
 
 		List<ProductControlSetting> productControlSettings = relaySetting.getProductControlSettings();
 		for (ProductControlSetting productControlSetting : productControlSettings) {
-			addUserProductControlSetting(productControlSetting, serialNumber, settingId, relaySetting.getRelayId());
+			addUserProductControlSetting(productControlSetting, serialNumber, settingId, relaySetting.getRelayId(),
+					relaySetting.getModuleId());
 		}
 
 		NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(
@@ -197,17 +199,19 @@ public class UserProductDAOImpl implements UserProductDAO {
 
 	@Override
 	public int addUserProductControlSetting(ProductControlSetting pcs, String serialNumber, Integer settingId,
-			Integer relayId) {
-
-		String sql = "INSERT INTO USER_PRODUCT_CONTROL_SETTINGS (" + "SERIAL_NUMBER," + "SETTING_ID," + "RELAY_ID,"
-				+ "USER_ID," + "HAS_ACCESS," + "CALL_ACCESS," + "CREATION_DATE," + "LAST_UPDATE_DATE) VALUES ("
-				+ ":SERIAL_NUMBER," + ":SETTING_ID," + ":RELAY_ID," + ":USER_ID," + ":HAS_ACCESS," + ":CALL_ACCESS,"
-				+ ":CREATION_DATE," + ":LAST_UPDATE_DATE)";
+			Integer relayId, Integer moduleId) {
+		
+		 
+		String sql = "INSERT INTO USER_PRODUCT_CONTROL_SETTINGS (" + "SERIAL_NUMBER," + "SETTING_ID,"
+				+ "RELAY_ID, MODULE_ID," + "USER_ID," + "HAS_ACCESS," + "CALL_ACCESS," + "CREATION_DATE,"
+				+ "LAST_UPDATE_DATE) VALUES (" + ":SERIAL_NUMBER," + ":SETTING_ID," + ":RELAY_ID,"
+				+ ":MODULE_ID, :USER_ID," + ":HAS_ACCESS," + ":CALL_ACCESS," + ":CREATION_DATE," + ":LAST_UPDATE_DATE)";
 
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("SERIAL_NUMBER", serialNumber);
 		parameters.put("SETTING_ID", settingId);
 		parameters.put("RELAY_ID", relayId);
+		parameters.put("MODULE_ID", moduleId);
 		parameters.put("USER_ID", pcs.getUserId());
 		parameters.put("HAS_ACCESS", pcs.isAccess() ? "Y" : "N");
 		parameters.put("CALL_ACCESS", pcs.isCallAccess() ? "Y" : "N");
@@ -325,14 +329,14 @@ public class UserProductDAOImpl implements UserProductDAO {
 	public List<RelaySetting> getRelaySettings(String serialNumber, Integer settingId) {
 
 		List<RelaySetting> relaySettings = new LinkedList<RelaySetting>();
-		String sql = "SELECT * FROM USER_PRODUCT_RELAY_SETTINGS WHERE SERIAL_NUMBER = ? AND SETTING_ID = ?";
+		String sql = "SELECT * FROM USER_PRODUCT_RELAY_SETTINGS WHERE SERIAL_NUMBER = ? AND SETTING_ID = ? ORDER BY MODULE_ID, RELAY_ID";
 
 		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, serialNumber, settingId);
 		for (Map<String, Object> row : rows) {
 			RelaySetting relaySetting = new RelaySetting();
 			relaySetting = mapper.mapRelaySetting(row);
-			relaySetting.setProductControlSettings(
-					getUserProductControlSettings(serialNumber, settingId, relaySetting.getRelayId()));
+			relaySetting.setProductControlSettings(getUserProductControlSettings(serialNumber, settingId,
+					relaySetting.getRelayId(), relaySetting.getModuleId()));
 			relaySettings.add(relaySetting);
 		}
 		return relaySettings;
@@ -359,12 +363,12 @@ public class UserProductDAOImpl implements UserProductDAO {
 
 	@Override
 	public List<ProductControlSetting> getUserProductControlSettings(String serialNumber, Integer settingId,
-			Integer relayId) {
+			Integer relayId, Integer moduleId) {
 
 		List<ProductControlSetting> productControlSettings = new LinkedList<ProductControlSetting>();
-		String sql = "SELECT * FROM USER_PRODUCT_CONTROL_SETTINGS WHERE SERIAL_NUMBER = ? AND SETTING_ID = ? AND RELAY_ID = ?";
+		String sql = "SELECT * FROM USER_PRODUCT_CONTROL_SETTINGS WHERE SERIAL_NUMBER = ? AND SETTING_ID = ? AND RELAY_ID = ? AND MODULE_ID = ?";
 
-		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, serialNumber, settingId, relayId);
+		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, serialNumber, settingId, relayId, moduleId);
 		for (Map<String, Object> row : rows) {
 			ProductControlSetting productControlSetting = new ProductControlSetting();
 			productControlSetting = mapper.mapProductControlSetting(row);
@@ -436,7 +440,20 @@ public class UserProductDAOImpl implements UserProductDAO {
 		parameters.put("SETTING_ID", setting.getSettingId());
 
 		for (RelaySetting relaySetting : setting.getRelaySettings()) {
-			updateUserProductRelaySetting(relaySetting, serialNumber, setting.getSettingId());
+			List<RelaySetting> currentRelaySettings = getRelaySettings(serialNumber, setting.getSettingId());
+			boolean found = false;
+			for (RelaySetting crs : currentRelaySettings) {
+				if (crs.getModuleId().equals(relaySetting.getModuleId())
+						&& crs.getRelayId().equals(relaySetting.getRelayId())) {
+					found = true;
+					break;
+				}
+			}
+			if (found){
+				updateUserProductRelaySetting(relaySetting, serialNumber, setting.getSettingId());
+			} else {
+				addUserProductRelaySetting(relaySetting, serialNumber, setting.getSettingId());
+			}
 		}
 
 		for (InputSetting inputSetting : setting.getInputSettings()) {
@@ -458,7 +475,7 @@ public class UserProductDAOImpl implements UserProductDAO {
 				+ "RELAY_ENABLED = :RELAY_ENABLED, DELAY_ENABLED = :DELAY_ENABLED, "
 				+ "TIMER_ENABLED = :TIMER_ENABLED, " + "LAST_UPDATE_DATE = :LAST_UPDATE_DATE "
 				+ "WHERE SERIAL_NUMBER = :SERIAL_NUMBER " + "AND SETTING_ID = :SETTING_ID "
-				+ "AND RELAY_ID = :RELAY_ID";
+				+ "AND RELAY_ID = :RELAY_ID AND MODULE_ID = :MODULE_ID";
 
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("RELAY_NAME", rs.getRelayName());
@@ -476,12 +493,14 @@ public class UserProductDAOImpl implements UserProductDAO {
 		parameters.put("SERIAL_NUMBER", serialNumber);
 		parameters.put("SETTING_ID", settingId);
 		parameters.put("RELAY_ID", rs.getRelayId());
-
+		parameters.put("MODULE_ID", rs.getModuleId());
+		
 		List<ProductControlSetting> productControlSettings = rs.getProductControlSettings();
 
-		deleteUserProductControlSettings(serialNumber, settingId, rs.getRelayId());
+		deleteUserProductControlSettings(serialNumber, settingId, rs.getRelayId(), rs.getModuleId());
 		for (ProductControlSetting productControlSetting : productControlSettings) {
-			addUserProductControlSetting(productControlSetting, serialNumber, settingId, rs.getRelayId());
+			addUserProductControlSetting(productControlSetting, serialNumber, settingId, rs.getRelayId(),
+					rs.getModuleId());
 		}
 
 		NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(
@@ -543,14 +562,16 @@ public class UserProductDAOImpl implements UserProductDAO {
 	}
 
 	@Override
-	public int deleteUserProductControlSettings(String serialNumber, Integer settingId, Integer relayId) {
+	public int deleteUserProductControlSettings(String serialNumber, Integer settingId, Integer relayId,
+			Integer moduleId) {
 
-		String sql = "DELETE FROM USER_PRODUCT_CONTROL_SETTINGS WHERE SERIAL_NUMBER = :SERIAL_NUMBER AND SETTING_ID = :SETTING_ID AND  RELAY_ID = :RELAY_ID";
+		String sql = "DELETE FROM USER_PRODUCT_CONTROL_SETTINGS WHERE SERIAL_NUMBER = :SERIAL_NUMBER AND SETTING_ID = :SETTING_ID AND RELAY_ID = :RELAY_ID AND MODULE_ID = :MODULE_ID";
 
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("SERIAL_NUMBER", serialNumber);
 		parameters.put("SETTING_ID", settingId);
 		parameters.put("RELAY_ID", relayId);
+		parameters.put("MODULE_ID", moduleId);
 
 		NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(
 				jdbcTemplate.getDataSource());

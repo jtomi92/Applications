@@ -5,7 +5,7 @@ import java.util.List;
 import com.jtech.apps.hcm.model.setting.ProductUser;
 import com.jtech.apps.hcm.model.setting.Setting;
 
-public class UserProduct {
+public class UserProduct{
 
 	private String serialNumber;
 	private String name;
@@ -24,6 +24,7 @@ public class UserProduct {
 
 	private List<Setting> productSettings;
 	private List<ProductUser> productUsers;
+	
 	
 	public void addProductUser(ProductUser productUser){
 		productUsers.add(productUser);
@@ -149,6 +150,7 @@ public class UserProduct {
 	public void setEdited(boolean isEdited) {
 		this.isEdited = isEdited;
 	}
+
 	
 
 }

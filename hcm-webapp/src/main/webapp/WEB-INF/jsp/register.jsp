@@ -14,7 +14,7 @@
 <meta name="_csrf" content="${_csrf.token}" />
 <!-- default header name is X-CSRF-TOKEN -->
 <meta name="_csrf_header" content="${_csrf.headerName}" />
-<title>Bootstrap Tutorial</title>
+<title>jTech Registration</title>
 <script
 	src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
 <link rel="stylesheet" type="text/css"
@@ -22,27 +22,13 @@
 <link
 	href="${pageContext.request.contextPath}/resources/custom/css/custom.css"
 	rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Exo"
+	rel="stylesheet">
 
 </head>
 <body>
 
-	<!-- HEADER START -->
-
-	<div class="collapse navbar-collapse navbar-inverse"
-		id="bs-example-navbar-collapse-1">
-		<ul class="nav navbar-nav">
-			<li class="active"><a href="#">Home <span class="sr-only">(current)</span></a></li>
-			<li><a href="#">About</a></li>
-			<li><a href="#">Contact Us</a></li>
-		</ul>
-		<!-- navbar-left will move the search to the left -->
-		<form class="navbar-form navbar-right" role="search">
-			<a href="${pageContext.request.contextPath}/console" type="button" class="btn btn-warning">My Console</a>
-		</form>
-	</div>
-	<br>
-
-	<!-- HEADER END -->
+	<jsp:include page="wrapper/header.jsp" />
 
 	<div class="container">
 
@@ -64,7 +50,7 @@
 									</label>
 								</h4>
 								<form:input type="text" class="form-control input-lg"
-									path="firstName" size="30" />
+									path="firstName" size="30" placeholder="John"/>
 								<form:errors path="firstName" cssClass="alert-danger" />
 							</div>
 							<!-- /input-group -->
@@ -77,7 +63,7 @@
 									</label>
 								</h4>
 								<form:input type="text" class="form-control input-lg"
-									path="lastName" size="30" />
+									path="lastName" size="30" placeholder="Doe"/>
 								<form:errors path="lastName" cssClass="alert-danger" />
 							</div>
 							<!-- /input-group -->
@@ -85,15 +71,23 @@
 						<!-- /.col-lg-6 -->
 					</div>
 					<!-- /.row -->
-
-
+					
 					<h4>
 						<label for="inputlg"> <b>*Email Address</b>
 						</label>
 					</h4>
 					<form:input type="text" class="form-control input-lg" path="email"
-						size="30" />
+						size="30" placeholder="john.doe@example.com" />
 					<form:errors path="email" cssClass="alert-danger" />
+					
+					<h4>
+						<label for="inputlg"> <b>Phone Number</b>
+						</label>
+					</h4>
+					<form:input type="text" class="form-control input-lg" path="phone"
+						size="30" placeholder="+36301234567" />
+					<form:errors path="phone" cssClass="alert-danger" />
+
 					<h4>
 						<label for="inputlg"> <b>*Password</b>
 						</label>
@@ -126,16 +120,8 @@
 		</form:form>
 	</div>
 
-
-	<!-- FOOTER START -->
-	<footer class="footer">
-		<div class="container">
-			<p class="text-muted">2016 jTech. All rights reserved.</p>
-		</div>
-	</footer>
-	<!-- FOOTER END -->
-
-
+	<jsp:include page="wrapper/footer.jsp" />
+	
 	<script
 		src="${pageContext.request.contextPath}/resources/bootstrap/js/bootstrap.min.js"></script>
 </body>

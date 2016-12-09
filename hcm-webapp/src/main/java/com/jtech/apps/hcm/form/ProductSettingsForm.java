@@ -5,7 +5,8 @@ import java.util.List;
 
 public class ProductSettingsForm {
  
-	private List<String> relayIds;
+	private List<String> moduleIds;
+	private List<String> relayIds;	
 	private List<String> relayNames;
 	private List<String> delays;
 	private List<String> impulses;
@@ -15,6 +16,13 @@ public class ProductSettingsForm {
 	private List<String> startTimers;
 	private List<String> endTimers;
 	
+	
+	public List<String> getModuleIds() {
+		return moduleIds;
+	}
+	public void setModuleIds(List<String> moduleIds) {
+		this.moduleIds = moduleIds;
+	}
 	public List<String> getRelayIds() {
 		return relayIds;
 	}

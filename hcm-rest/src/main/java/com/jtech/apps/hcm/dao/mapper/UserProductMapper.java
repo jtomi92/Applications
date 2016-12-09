@@ -59,6 +59,7 @@ public class UserProductMapper {
 
 		RelaySetting relaySetting = new RelaySetting();
 		relaySetting.setRelayId((Integer) row.get("RELAY_ID"));
+		relaySetting.setModuleId((Integer) row.get("MODULE_ID"));
 		relaySetting.setRelayName((String) row.get("RELAY_NAME"));
 		relaySetting.setRelayStatus((String) row.get("RELAY_STATUS"));
 		relaySetting.setStartWeekDays((String) row.get("START_WEEKDAYS"));
